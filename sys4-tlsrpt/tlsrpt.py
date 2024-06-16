@@ -634,7 +634,7 @@ def tlsrpt_fetcher_main():
     fetcher = TLSRPTFetcherSQLite(config)
     if len(sys.argv) < 2:
         print("Usage: %s day [domain]", file=sys.stderr)
-        fetcher.fetch_domain_list(tlsrpt_utc_date_now())  # for testing just fetch
+        fetcher.fetch_domain_list(tlsrpt_utc_date_now())   # for testing just fetch
         sys.exit(1)
     if len(sys.argv) < 3:
         fetcher.fetch_domain_list(sys.argv[1])

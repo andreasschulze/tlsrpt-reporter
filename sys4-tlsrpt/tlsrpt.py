@@ -550,6 +550,11 @@ def tlsrpt_utc_date_yesterday():
     return (ts + dt).date()
 
 
+# REVIEW: config should be an argument, such that we can instantiate the
+# dependency more easily (e.g. in test code to test differen configuration
+# variants). A default argument might be useful here:
+#
+# def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_receiver_main():
     config = ConfigReceiver()
 

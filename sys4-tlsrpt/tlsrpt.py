@@ -652,6 +652,11 @@ def tlsrpt_fetcher_main():
 #
 # def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_reporter_main():
+    """
+    Entry point to the reporter main. The reporter is the part that finally
+    sends the STMP TLS reports out the endpoints that the other MTA operators
+    have published.
+    """
     config = ConfigReporter()
     logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s %(lineno)s : %(message)s",
                         filename=config.reporter_logfilename, filemode="a", level=logging.DEBUG)

@@ -295,11 +295,14 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
 
 
 class TLSRPTReporter:
-    cfg: ConfigReporter
+    # REVIEW: It is not necesarry to declare instance attributes here.
+    # In fact, by declaring cfg here, we would declare it as class attribute
+    # that is shared by all instances of TLSRPTReporter. Setting the
+    # instance attribute in the __init__ function is all that is needed.
+    # cfg: ConfigReporter
 
-    def __init__(self, config):
+    def __init__(self, config: ConfigReporter):
         """
-
         :type config: ConfigReporter
         """
         self.cfg = config

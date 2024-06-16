@@ -618,6 +618,11 @@ def tlsrpt_receiver_main():
             logging.error(f"Database error: {err}")
 
 
+# REVIEW: config should be an argument, such that we can instantiate the
+# dependency more easily (e.g. in test code to test differen configuration
+# variants). A default argument might be useful here:
+#
+# def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_fetcher_main():
     # TLSRPT-fetcher is tightly coupled to TLSRPT-receiver and uses its config and database
     config = ConfigReceiver()

@@ -524,7 +524,7 @@ def myprint(*args, **kwargs):
     pass
     return print(*args, **kwargs)
 
-
+# REVIEW: Should be used to utility module
 def tlsrpt_utc_time_now():
     """
     Returns a timezone aware datetime object of the current UTC time.
@@ -532,6 +532,7 @@ def tlsrpt_utc_time_now():
     return datetime.datetime.now().astimezone(datetime.timezone.utc)
 
 
+# REVIEW: Should be used to utility module
 def tlsrpt_utc_date_now():
     """
     Returns the current date in UTC.
@@ -539,6 +540,7 @@ def tlsrpt_utc_date_now():
     return tlsrpt_utc_time_now().date()
 
 
+# REVIEW: Should be used to utility module
 def tlsrpt_utc_date_yesterday():
     """
     Returns the date of yesterday in UTC.

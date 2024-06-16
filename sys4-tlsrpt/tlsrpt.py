@@ -519,22 +519,31 @@ class TLSRPTReporter:
             else:
                 logging.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
 
-
+# DELETEME/REVIEW: No used anywhere in the code. Should be removed
 def myprint(*args, **kwargs):
     pass
     return print(*args, **kwargs)
 
 
 def tlsrpt_utc_time_now():
+    """
+    Returns a timezone aware datetime object of the current UTC time.
+    """
     return datetime.datetime.now().astimezone(datetime.timezone.utc)
 
 
 def tlsrpt_utc_date_now():
+    """
+    Returns the current date in UTC.
+    """
     return tlsrpt_utc_time_now().date()
 
 
 def tlsrpt_utc_date_yesterday():
-    ts = datetime.datetime.now()
+    """
+    Returns the date of yesterday in UTC.
+    """
+    ts = tlsrpt_utc_time_now()   # Making sure, ts is timezone-aware and UTC.
     dt = datetime.timedelta(days=-1)
     return (ts + dt).date()
 

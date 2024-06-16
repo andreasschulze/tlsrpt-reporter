@@ -342,7 +342,12 @@ class TLSRPTReporter:
             logging.error("Database '%s' setup failed: %s", self.dbname, err)
             sys.exit(EXIT_DB_SETUP_FAILURE)
 
-    def _check_database(self):
+    def _check_database(self) -> bool:
+        """
+        Tries to run a database query, returns True if database has the correct
+        version and works as expected. If the database has wrong database
+        version, the whole program execution is terminated.
+        """
         try:
             self.cur.execute("SELECT version, installdate FROM tlsrptreporterdbversion")
             row = self.cur.fetchone()

@@ -624,6 +624,10 @@ def tlsrpt_receiver_main():
 #
 # def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_fetcher_main():
+    """
+    Runs the fetcher main. The fetcher is there to regularly consolidate the
+    database entries that were written by the receiver.
+    """
     # TLSRPT-fetcher is tightly coupled to TLSRPT-receiver and uses its config and database
     config = ConfigReceiver()
 

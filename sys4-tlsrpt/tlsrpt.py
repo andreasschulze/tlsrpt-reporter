@@ -317,7 +317,11 @@ class TLSRPTReporter:
             logging.info("Create new database %s", self.dbname)
             self._setup_database()
 
-    def _setup_database(self):
+    def _setup_database(self) -> None:
+        """
+        Create the database table structure. If the database setup cannot be
+        completed, program execution is terminated with non-zero return value.
+        """
         try:
             ddl = ["CREATE TABLE fetchjobs(day, fetcherindex, fetcher, retries, status, nexttry, "
                    "PRIMARY KEY(day, fetcherindex))",

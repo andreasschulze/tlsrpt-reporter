@@ -556,6 +556,11 @@ def tlsrpt_utc_date_yesterday():
 #
 # def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_receiver_main():
+    """
+    Contains the main TLSRPT receiver loop. This listens on a socket to
+    receive TLSRPT datagrams from the MTA (e.g. Postfix). and writes the
+    datagrams to the database.
+    """
     config = ConfigReceiver()
 
     server_address = config.receiver_socketname

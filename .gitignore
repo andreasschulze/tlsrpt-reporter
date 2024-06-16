@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# sqlite3 test databases might be created
+*.sqlite
+*.sqlite3
+
+# MacOS
+.DS_Store

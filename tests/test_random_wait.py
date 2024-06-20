@@ -18,7 +18,8 @@
 #
 
 import unittest
-import tlsrpt
+from sys4_tlsrpt import tlsrpt   # unit under test
+
 
 class MyTestCase(unittest.TestCase):
     def test_something(self):
@@ -26,7 +27,6 @@ class MyTestCase(unittest.TestCase):
         now=tlsrpt.tlsrpt_utc_time_now()
         n = config.next_time_domainlist()
         self.assertGreater(n, now)
-
 
 
 if __name__ == '__main__':

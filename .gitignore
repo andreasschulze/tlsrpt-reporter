@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Python virtual envs
+.venv/
+venv/
+
+# Unittest automation with tox
+.tox/
+
 # C extensions
 *.so
 
@@ -12,3 +19,5 @@ __pycache__/
 
 # MacOS
 .DS_Store
+
+

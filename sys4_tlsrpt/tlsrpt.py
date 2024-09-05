@@ -90,7 +90,7 @@ class ConfigReporter:
 
     @property
     def reporter_fetchers(self):
-        return ["python3 tlsrpt-fetcher.py "]
+        return ["python3 tlsrpt_fetcher.py "]
 
     @property
     def organization_name(self):
@@ -98,7 +98,7 @@ class ConfigReporter:
 
     @property
     def contact_info(self):
-        return "sender@example.com"
+        return "smtp-tls-reporting@example.com"
 
     @property
     def max_receiver_timeout(self):
@@ -213,7 +213,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         self.con.commit()
 
     def _add_policy(self, day, domain, policy):
-        # Romove unneeded keys from policy before writing to database, keeping needed values
+        # Remove unneeded keys from policy before writing to database, keeping needed values
         policy_failed = policy.pop("f")
         failures = policy.pop("failure-details", [])
         policy.pop("t", None)
@@ -364,7 +364,7 @@ class TLSRPTReporter:
         logging.debug("Check day")
         cur = self.con.cursor()
         yesterday = tlsrpt_utc_date_yesterday()
-        if DEVELMODE:  # use todays data during development
+        if DEVELMODE:  # use today´s data during development
             yesterday = tlsrpt_utc_date_now()
         now = tlsrpt_utc_time_now()
         cur.execute("SELECT * FROM fetchjobs WHERE day=?", (yesterday,))
@@ -442,7 +442,7 @@ class TLSRPTReporter:
                 logging.warning("Unexpected end of domain list")
                 result = False
                 break
-            if dom == ".":
+            if dom == ".":  # end of domain list reached
                 break
             try:
                 self.cur.execute("INSERT INTO reportdata "
@@ -519,10 +519,12 @@ class TLSRPTReporter:
             else:
                 logging.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
 
+
 # DELETEME/REVIEW: No used anywhere in the code. Should be removed
 def myprint(*args, **kwargs):
     pass
     return print(*args, **kwargs)
+
 
 # REVIEW: Should be used to utility module
 def tlsrpt_utc_time_now():
@@ -551,7 +553,7 @@ def tlsrpt_utc_date_yesterday():
 
 
 # REVIEW: config should be an argument, such that we can instantiate the
-# dependency more easily (e.g. in test code to test differen configuration
+# dependency more easily (e.g. in test code to test different configuration
 # variants). A default argument might be useful here:
 #
 # def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
@@ -619,14 +621,14 @@ def tlsrpt_receiver_main():
 
 
 # REVIEW: config should be an argument, such that we can instantiate the
-# dependency more easily (e.g. in test code to test differen configuration
+# dependency more easily (e.g. in test code to test different configuration
 # variants). A default argument might be useful here:
 #
 # def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_fetcher_main():
     """
-    Runs the fetcher main. The fetcher is there to regularly consolidate the
-    database entries that were written by the receiver.
+    Runs the fetcher main. The fetcher is used by the TLSRPT-reporter to
+    read the database entries that were written by the receiver.
     """
     # TLSRPT-fetcher is tightly coupled to TLSRPT-receiver and uses its config and database
     config = ConfigReceiver()
@@ -647,7 +649,7 @@ def tlsrpt_fetcher_main():
 
 
 # REVIEW: config should be an argument, such that we can instantiate the
-# dependency more easily (e.g. in test code to test differen configuration
+# dependency more easily (e.g. in test code to test different configuration
 # variants). A default argument might be useful here:
 #
 # def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
@@ -674,7 +676,7 @@ if __name__ == "__main__":
         print("Expanding argv...")
         sys.argv.append("dummy")
     sys.argv[1] = str(tlsrpt_utc_date_now())
-    sys.argv[2] = "test-0.exAmple.com"
+    sys.argv[2] = "test-0.example.com"
     print("Now will do fetcher test-run !!! Args=", sys.argv)
     print()
     tlsrpt_fetcher_main()

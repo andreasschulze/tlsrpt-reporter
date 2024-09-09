@@ -30,6 +30,9 @@ import sys
 import sqlite3
 import time
 
+from utility import tlsrpt_utc_time_now, tlsrpt_utc_date_now, tlsrpt_utc_date_yesterday
+
+
 # Constants
 TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1 domain list"
 TLSRPT_TIMEFORMAT = "%Y-%m-%d %H:%M:%S"
@@ -518,38 +521,6 @@ class TLSRPTReporter:
                 time.sleep(seconds_to_sleep)
             else:
                 logging.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
-
-
-# DELETEME/REVIEW: No used anywhere in the code. Should be removed
-def myprint(*args, **kwargs):
-    pass
-    return print(*args, **kwargs)
-
-
-# REVIEW: Should be used to utility module
-def tlsrpt_utc_time_now():
-    """
-    Returns a timezone aware datetime object of the current UTC time.
-    """
-    return datetime.datetime.now().astimezone(datetime.timezone.utc)
-
-
-# REVIEW: Should be used to utility module
-def tlsrpt_utc_date_now():
-    """
-    Returns the current date in UTC.
-    """
-    return tlsrpt_utc_time_now().date()
-
-
-# REVIEW: Should be used to utility module
-def tlsrpt_utc_date_yesterday():
-    """
-    Returns the date of yesterday in UTC.
-    """
-    ts = tlsrpt_utc_time_now()   # Making sure, ts is timezone-aware and UTC.
-    dt = datetime.timedelta(days=-1)
-    return (ts + dt).date()
 
 
 # REVIEW: config should be an argument, such that we can instantiate the

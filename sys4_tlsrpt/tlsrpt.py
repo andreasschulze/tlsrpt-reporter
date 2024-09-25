@@ -68,6 +68,11 @@ class ConfigReceiver:
         return 1000
 
     @property
+    def retry_commit_every_n_datagrams(self):
+        """Database will retry a failed commit every n datagrams """
+        return 100
+
+    @property
     def receiver_logfilename(self):
         return "/tmp/tlsrpt-receiver.log"
 
@@ -126,7 +131,11 @@ class ConfigReporter:
     def max_wait_domainlist(self):
         return 360
 
-    def next_time_domainlist(self):
+    @property
+    def spread_out_delivery(self):
+        return 36000
+
+    def wait_domainlist(self):
         """
         Calculates a random wait period
 
@@ -134,8 +143,18 @@ class ConfigReporter:
         """
         waits = random.randint(self.min_wait_domainlist, self.max_wait_domainlist)  # 5 to 6 minutes
         if DEVELMODE:
-            random.randint(1, 3)  # 1 to 3 seconds for testing
-        return tlsrpt_utc_time_now() + datetime.timedelta(seconds=waits)
+            waits = random.randint(1, 3)  # 1 to 3 seconds for testing
+        return waits
+
+    def schedule_report_delivery(self):
+        secs = random.randint(0, self.spread_out_delivery)
+        if DEVELMODE:
+            secs = 0
+        return tlsrpt_utc_time_now() + datetime.timedelta(seconds=secs)
+
+    @property
+    def interval_main_loop(self):
+        return 23
 
 
 class TLSRPTReceiver(metaclass=ABCMeta):

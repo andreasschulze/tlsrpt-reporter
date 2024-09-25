@@ -308,7 +308,10 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         # database maintenance
         self.uncommitted_datagrams += 1
         if self.uncommitted_datagrams >= self.commitEveryN:
-            self.commit_after_n_datagrams()
+            # a database problem can cause a commit-attempt to hang
+            # do not retry after each additional datagram but wait for more data to accumulate before retrying
+            if (self.uncommitted_datagrams-self.commitEveryN) % self.cfg.retry_commit_every_n_datagrams == 0:
+                self.commit_after_n_datagrams()
 
     def socket_timeout(self):
         """

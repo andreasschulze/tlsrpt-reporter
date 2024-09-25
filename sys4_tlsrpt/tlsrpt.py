@@ -560,15 +560,33 @@ class TLSRPTReporter:
             self.con.commit()
         return result
 
+    def select_incomplete_days(self, cursor):
+        """
+        Get days with incomplete fetchjobs from the database
+        :param cursor: the DB cursor to use for the query
+        :return: the row set of incomplete days
+        """
+        # select days that are not fully fetched yet for debug loglevel
+        cursor.execute("SELECT day FROM fetchjobs WHERE status IS NULL")
+        incompletedays = cursor.fetchall()
+        return incompletedays
+
     def fetch_data(self):
         """
         Fetch details for the domains not yet processed
         """
         logging.debug("Fetch data")
         curtofetch = self.con.cursor()
+        incompletedays = self.select_incomplete_days(curtofetch)
+        if len(incompletedays) != 0:
+            logging.debug("The are %d incomplete days: %s", len(incompletedays), incompletedays.__str__())
+
+        # select jobs that are due
         now = tlsrpt_utc_time_now()
-        curtofetch.execute("SELECT day, fetcher, fetcherindex, domain FROM reportdata WHERE data IS NULL AND nexttry<?",
-                           (now,))
+        curtofetch.execute(
+            "SELECT day, fetcher, fetcherindex, domain FROM reportdata "
+            "WHERE data IS NULL AND nexttry<? AND day NOT IN (SELECT day FROM fetchjobs WHERE status IS NULL)",
+            (now,))
         for row in curtofetch:
             self.fetch_data_from_fetcher_for_domain(row[0], row[1], row[2], row[3])
 

@@ -17,7 +17,6 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 
-import datetime
 import json
 import logging
 import os
@@ -30,19 +29,23 @@ import sys
 import sqlite3
 import time
 
-from utility import tlsrpt_utc_time_now, tlsrpt_utc_date_now, tlsrpt_utc_date_yesterday
+from utility import *
 
 
 # Constants
-TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1 domain list"
+TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel domain list"
 TLSRPT_TIMEFORMAT = "%Y-%m-%d %H:%M:%S"
-TLSRPT_MAX_READ_FETCHER = 16000000
-TLSRPT_MAX_READ_RECEIVER = 16000000
+TLSRPT_MAX_READ_FETCHER = 16*1024*1024
+TLSRPT_MAX_READ_RECEIVER = 16*1024*1024
+
 # Exit codes
 EXIT_DB_SETUP_FAILURE = 1
 EXIT_WRONG_DB_VERSION = 2
+EXIT_USAGE = 3
+
 # Development mode
 DEVELMODE = True
+DEVELMODDE_DBQUERIES = True
 
 
 class ConfigReceiver:

@@ -485,11 +485,14 @@ class TLSRPTReporter:
         for row in curs:
             (day, fetcherindex, fetcher, retries) = row
             if self.collect_domains_from(day, fetcher, fetcherindex):
+                logging.info("Fetcher %d %s finished in run %d", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET status='ok' WHERE day=? AND fetcherindex=?", (day, fetcherindex))
             elif retries < self.cfg.max_retries_domainlist:
+                logging.warning("Fetcher %d %s failed in run %d", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET retries=retries+1, nexttry=? WHERE day=? AND fetcherindex=?",
                              (self.cfg.next_time_domainlist(), day, fetcherindex))
             else:
+                logging.warning("Fetcher %d %s timedout after %d retries", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET status='timedout' WHERE day=? AND fetcherindex=?",
                              (day, fetcherindex))
         self.con.commit()

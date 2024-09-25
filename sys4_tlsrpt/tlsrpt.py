@@ -751,6 +751,7 @@ def tlsrpt_receiver_main():
             raise
         except UnicodeDecodeError as err:
             logging.error(f"Malformed utf8 data received: {err}")
+            Path(config.dump_path_for_invalid_datagram).write_bytes(alldata)
         except json.decoder.JSONDecodeError as err:
             logging.error(f"JSON decode error: {err}")
             Path(config.dump_path_for_invalid_datagram).write_text(alldata.decode("utf-8"), encoding="utf-8")

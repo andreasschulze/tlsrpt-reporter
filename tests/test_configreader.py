@@ -184,7 +184,7 @@ class MyTestCase(unittest.TestCase):
                          {'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
                          {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
                          {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
-        self.assertEqual(cm.exception.__str__(), "__new__() got an unexpected keyword argument 'b0rk_ocfe'")
+        self.assertRegex(cm.exception.__str__(), "__new__\(\) got an unexpected keyword argument 'b0rk_ocfe'")
 
     def test_b0rkcmd(self):
         with self.assertRaises(Exception) as cm:
@@ -192,7 +192,7 @@ class MyTestCase(unittest.TestCase):
                          {'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
                          {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
                          {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
-        self.assertEqual(cm.exception.__str__(), "__new__() got an unexpected keyword argument 'b0rk_ocfe'")
+        self.assertRegex(cm.exception.__str__(), "__new__\(\) got an unexpected keyword argument 'b0rk_ocfe'")
 
     @patch('sys.stderr', new_callable=StringIO)
     def test_b0rkcfg(self, mock_stderr):

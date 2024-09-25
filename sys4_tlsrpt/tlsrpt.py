@@ -462,7 +462,7 @@ class TLSRPTReporter:
         cur.execute("SELECT * FROM fetchjobs WHERE day=?", (yesterday,))
         row = cur.fetchone()
         if row is not None:  # Jobs already exist
-            self.wake_up_at(tlsrpt_utc_time_now() + datetime.timedelta(hours=0, seconds=20))  # TODO
+            self.wake_up_at(300)  # wake up every five minutes to check
             return
         # create now fetcher jobs
         fidx = 0
@@ -470,7 +470,6 @@ class TLSRPTReporter:
             fidx += 1
             cur.execute("INSERT INTO fetchjobs (day, fetcherindex, fetcher, retries, status, nexttry)"
                         "VALUES (?,?,?,0,NULL,?)", (yesterday, fidx, fetcher, now))
-        self.wake_up_at(tlsrpt_utc_date_now() + datetime.timedelta(hours=24, seconds=20))
         self.con.commit()
 
     def collect_domains(self):

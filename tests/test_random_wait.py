@@ -18,15 +18,20 @@
 #
 
 import unittest
-from sys4_tlsrpt import tlsrpt   # unit under test
-
+from sys4_tlsrpt import utility   # unit under test
+import datetime
 
 class MyTestCase(unittest.TestCase):
-    def test_something(self):
-        config = tlsrpt.ConfigReporter()
-        now=tlsrpt.tlsrpt_utc_time_now()
-        n = config.next_time_domainlist()
-        self.assertGreater(n, now)
+    def test_monotone_time(self):
+        now = utility.tlsrpt_utc_time_now()
+        today = utility.tlsrpt_utc_date_now()
+        today = datetime.datetime.combine(today, datetime.datetime.min.time(),tzinfo=datetime.timezone.utc)
+        self.assertGreaterEqual(now, today)
+
+    def test_monotone_days(self):
+        today = utility.tlsrpt_utc_date_now()
+        yesterday = utility.tlsrpt_utc_date_yesterday()
+        self.assertGreater(today, yesterday)
 
 
 if __name__ == '__main__':

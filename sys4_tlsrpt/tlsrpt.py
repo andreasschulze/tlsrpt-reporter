@@ -271,9 +271,12 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         :param policy: the policy dict
         """
         # Remove unneeded keys from policy before writing to database, keeping needed values
-        policy_failed = policy.pop("f")
-        failures = policy.pop("failure-details", [])
-        policy.pop("t", None)
+        policy_failed = policy.pop("f")  # boolean defining success or failure as final result
+        failures = policy.pop("failure-details", [])  # the failures encountered
+        failure_count = policy.pop("t", None)  # number of failures
+        if failure_count != len(failures):
+            logging.error("Failure count mismatch in received datagram: %d reported versus %d failured details: %s",
+                          failure_count, len(failures), json.dumps(failures))
         p = json.dumps(policy)
         self.cur.execute(
             "INSERT INTO finalresults (day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure) VALUES(?,?,?,?,1,?) "

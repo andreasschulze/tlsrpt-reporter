@@ -45,7 +45,7 @@ EXIT_USAGE = 3
 
 # Development mode
 DEVELMODE = True
-DEVELMODDE_DBQUERIES = True
+DEVELMODE_DBQUERIES = True
 
 
 class ConfigReceiver:
@@ -398,6 +398,8 @@ class TLSRPTReporter:
         else:
             logging.info("Create new database %s", self.dbname)
             self._setup_database()
+        if DEVELMODE_DBQUERIES:
+            self.con.set_trace_callback(print)
 
     def _setup_database(self) -> None:
         """

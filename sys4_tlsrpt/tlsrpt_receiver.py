@@ -17,7 +17,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 
-from tlsrpt import tlsrpt_receiver_main
+import tlsrpt
 
 if __name__ == '__main__':
-    tlsrpt_receiver_main()
+    tlsrpt.tlsrpt_receiver_main()

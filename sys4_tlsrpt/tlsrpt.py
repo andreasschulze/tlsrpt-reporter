@@ -490,7 +490,7 @@ class TLSRPTReporter:
             elif retries < self.cfg.max_retries_domainlist:
                 logging.warning("Fetcher %d %s failed in run %d", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET retries=retries+1, nexttry=? WHERE day=? AND fetcherindex=?",
-                             (self.cfg.next_time_domainlist(), day, fetcherindex))
+                             (self.wake_up_in(self.cfg.wait_domainlist()), day, fetcherindex))
             else:
                 logging.warning("Fetcher %d %s timedout after %d retries", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET status='timedout' WHERE day=? AND fetcherindex=?",
@@ -650,19 +650,38 @@ class TLSRPTReporter:
         """
         logging.debug("Send out reports UNIMPLEMENTED")
 
-    def wake_up_at(self, t):
+    def wake_up_in(self, secs, force=False):
+        """
+        Schedule next main loop run in secs seconds
+        :param secs: The number of seconds to sleep at most
+        :param force: Set this wake up time as an override even if a shorter wake up time is already set
+        :return: The new wake up time
+        """
+        return self.wake_up_at(tlsrpt_utc_time_now() + datetime.timedelta(seconds=secs), force)
+
+    def wake_up_at(self, t, force=False):
+        """
+        Schedule next main loop run at time t
+        :param t: The time to start the next main loop run
+        :param force: Set this wake up time as an override even if a shorter wake up time is already set
+        :return: The new wake up time
+        """
         if self.wakeuptime > t:
             logging.debug(f"Changing wake up time from {self.wakeuptime} to {t}")
             self.wakeuptime = t
+        elif force:
+            logging.debug(f"Enforcing wake up time from {self.wakeuptime} to {t}")
+            self.wakeuptime = t
         else:
             logging.debug(f"Not changing wake up time from {self.wakeuptime} to {t}")
+        return self.wakeuptime
 
     def run_loop(self):
         """
         Main loop processing the various jobs and steps.
         """
         while True:
-            self.wakeuptime = tlsrpt_utc_time_now() + datetime.timedelta(seconds=60)
+            self.wake_up_in(self.cfg.interval_main_loop, True)
             self.check_day()
             self.collect_domains()
             self.fetch_data()

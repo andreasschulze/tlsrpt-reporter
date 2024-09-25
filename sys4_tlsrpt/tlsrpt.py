@@ -158,16 +158,31 @@ class ConfigReporter:
 
 
 class TLSRPTReceiver(metaclass=ABCMeta):
+    """
+    Abstract base class for TLSRPT receiver implementations
+    """
     @abstractmethod
     def add_datagram(self, datagram):
+        """
+        Process a received datagram
+        :param datagram: datagram received e.g. from the tlsrpt library
+        """
         pass
 
     @abstractmethod
     def socket_timeout(self):
+        """
+        Process a timeout on the receiving socket
+        """
         pass
 
 
 class DummyReceiver(TLSRPTReceiver):
+    """
+    DummyReceiver only logs received datagrams.
+    This is used during development to test support for multiple receivers.
+    """
+
     def __init__(self, dolog):
         self.dolog = dolog
 
@@ -181,9 +196,10 @@ class DummyReceiver(TLSRPTReceiver):
 
 
 class TLSRPTReceiverSQLite(TLSRPTReceiver):
-    cfg: ConfigReceiver
-
-    def __init__(self, config):
+    def __init__(self, config: ConfigReceiver):
+        """
+        :type config: ConfigReceiver
+        """
         self.cfg = config
         self.uncommitted_datagrams = 0
         self.dbname = self.cfg.receiver_dbname
@@ -228,6 +244,11 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             return False
 
     def _db_commit(self, reason):
+        """
+        Perform a commit of the sqlite database to write data to disk so it can be accessed by the fetcher
+        :param reason: Descriptive string for the logging message
+        :return:
+        """
         try:
             self.con.commit()
             logging.debug((reason+" with %d datagrams") % self.uncommitted_datagrams)
@@ -244,6 +265,13 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         self._db_commit("Database commit")
 
     def _add_policy(self, day, domain, tlsrptrecord, policy):
+        """
+        Process one of the policies found in the received datagram
+        :param day: The day this datagram was received
+        :param domain: The domain this report entry will be about
+        :param tlsrptrecord: The tlsrpt DNS record
+        :param policy: the policy dict
+        """
         # Remove unneeded keys from policy before writing to database, keeping needed values
         policy_failed = policy.pop("f")
         failures = policy.pop("failure-details", [])
@@ -263,6 +291,11 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
                 (day, domain, tlsrptrecord, p, json.dumps(f)))
 
     def _add_policies_from_datagram(self, day, datagram):
+        """
+        Process the policies found in the received datagram
+        :param day: The day this datagram was received
+        :param datagram: The received datagram
+        """
         if "policies" not in datagram:
             logging.warning("No policies found in datagram: %s", datagram)
             return
@@ -270,27 +303,38 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             self._add_policy(day, datagram["d"], policy)
 
     def add_datagram(self, datagram):
+        # process the datagram
         self._add_policies_from_datagram(tlsrpt_utc_date_now(), datagram)
-
+        # database maintenance
         self.uncommitted_datagrams += 1
         if self.uncommitted_datagrams >= self.commitEveryN:
             self.commit_after_n_datagrams()
 
     def socket_timeout(self):
+        """
+        Commit database to disk periodically
+        """
         self.timed_commit()
 
 
 class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
+    """
+    Fetcher class for SQLite receiver
+    """
     def fetch_domain_list(self, day):
+        """
+        List domains contained in this receiver database for a specific day
+        :param day: The day for which to create a report
+        """
         logging.info(f"TLSRPT fetcher domain list starting for day {day}")
-        # Protocol header
+        # protocol header line 1: the protocol version
         print(TLSRPT_FETCHER_VERSION_STRING_V1)
-        # send timeout in seconds so fetching can be rescheduled after a timeout commit, or warn about too big delay
+        # line 2: timeout in seconds so fetching can be rescheduled after a timeout commit, or warn about too big delay
         print(self.cfg.receiver_sockettimeout)
-        # send time so fetching can be rescheduled to account for clock offset, or warn about too big delay
+        # line 3: current time so fetching can be rescheduled to account for clock offset, or warn about too big delay
         print(tlsrpt_utc_time_now().strftime(TLSRPT_TIMEFORMAT))
-        # could use member cur because this will be called from fetcher which is supposed to be completely
-        # separate from receiver, but let´s keep this cursor local to this method
+        # protocol header finished
+        # send domains
         dlcursor = self.con.cursor()
         dlcursor.execute("SELECT DISTINCT domain FROM finalresults WHERE day=?", (day,))
         linenumber = 0
@@ -300,9 +344,15 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
                 print(row[0])
             except BrokenPipeError as err:
                 logging.warning(f"Error when writing line {linenumber} : ", err)
+        # terminate domain list with a single dot
         print(".")
 
     def fetch_domain_details(self, day, domain):
+        """
+        Print out report details for a domain on a specific day
+        :param day: The day for which to print the report details
+        :param domain: The domain for which to print the report details
+        """
         logging.info(f"TLSRPT fetcher domain details starting for day {day} and domain {domain}")
         policies = {}
         dlcursor = self.con.cursor()
@@ -330,12 +380,9 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
 
 
 class TLSRPTReporter:
-    # REVIEW: It is not necesarry to declare instance attributes here.
-    # In fact, by declaring cfg here, we would declare it as class attribute
-    # that is shared by all instances of TLSRPTReporter. Setting the
-    # instance attribute in the __init__ function is all that is needed.
-    # cfg: ConfigReporter
-
+    """
+    The TLSRPT reporter class
+    """
     def __init__(self, config: ConfigReporter):
         """
         :type config: ConfigReporter
@@ -397,6 +444,9 @@ class TLSRPTReporter:
             return False
 
     def check_day(self):
+        """
+        Check if a new day has started and create jobs for the new day to be processed in the next steps
+        """
         logging.debug("Check day")
         cur = self.con.cursor()
         yesterday = tlsrpt_utc_date_yesterday()
@@ -418,6 +468,9 @@ class TLSRPTReporter:
         self.con.commit()
 
     def collect_domains(self):
+        """
+        Collect domains from the fetchers
+        """
         logging.debug("Collect domains")
         curs = self.con.cursor()
         curu = self.con.cursor()
@@ -440,9 +493,10 @@ class TLSRPTReporter:
         """
         Fetch the list of domains from one of the fetchers
 
-        :param day:
-        :type fetcher: str
-        :type fetcherindex: int
+        :param day: Day for which to fetch the domain list
+        :type fetcher: The fetcher to run
+        :type fetcherindex: The fetchers index in the configuration
+        :return: True if the job completed successfully, False if a retry is necessary
         """
         logging.debug("Collect domains from %d %s", fetcherindex, fetcher)
         args = fetcher.split()
@@ -498,6 +552,9 @@ class TLSRPTReporter:
         return result
 
     def fetch_data(self):
+        """
+        Fetch details for the domains not yet processed
+        """
         logging.debug("Fetch data")
         curtofetch = self.con.cursor()
         now = tlsrpt_utc_time_now()
@@ -507,6 +564,13 @@ class TLSRPTReporter:
             self.fetch_data_from_fetcher_for_domain(row[0], row[1], row[2], row[3])
 
     def fetch_data_from_fetcher_for_domain(self, day, fetcher, fetcherindex, dom):
+        """
+        Fetch details for one domain from one fetcher for a specific day
+        :param day: Day for which to fetch the domain details
+        :type fetcher: The fetcher to run
+        :type fetcherindex: The fetchers index in the configuration
+        :param dom: The domain for which to fetch the details
+        """
         logging.debug("Fetch data for domain %s from %d %s", dom, fetcherindex, fetcher)
         args = fetcher.split()
         args.append(day.__str__())
@@ -520,9 +584,13 @@ class TLSRPTReporter:
         self.con.commit()
 
     def create_reports(self):
+        """
+        Create all reports possible, i.e. where no data is pending.
+        """
         logging.debug("Create reports")
         curtofetch = self.con.cursor()
         self.curtoupdate = self.con.cursor()
+        # Some diagnostic information
         curtofetch.execute("SELECT fetcherindex, domain FROM reportdata WHERE data IS NULL")
         for row in curtofetch:
             logging.warning("Incomplete data for domain %s by fetcher index %d", row[1], row[0])
@@ -530,6 +598,9 @@ class TLSRPTReporter:
         self.con.commit()
 
     def send_out_reports(self):
+        """
+        Send out the finished reports.
+        """
         logging.debug("Send out reports UNIMPLEMENTED")
 
     def wake_up_at(self, t):
@@ -540,6 +611,9 @@ class TLSRPTReporter:
             logging.debug(f"Not changing wake up time from {self.wakeuptime} to {t}")
 
     def run_loop(self):
+        """
+        Main loop processing the various jobs and steps.
+        """
         while True:
             self.wakeuptime = tlsrpt_utc_time_now() + datetime.timedelta(seconds=60)
             self.check_day()
@@ -556,11 +630,6 @@ class TLSRPTReporter:
                 logging.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
 
 
-# REVIEW: config should be an argument, such that we can instantiate the
-# dependency more easily (e.g. in test code to test different configuration
-# variants). A default argument might be useful here:
-#
-# def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_receiver_main():
     """
     Contains the main TLSRPT receiver loop. This listens on a socket to
@@ -624,11 +693,6 @@ def tlsrpt_receiver_main():
             logging.error(f"Database error: {err}")
 
 
-# REVIEW: config should be an argument, such that we can instantiate the
-# dependency more easily (e.g. in test code to test different configuration
-# variants). A default argument might be useful here:
-#
-# def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_fetcher_main():
     """
     Runs the fetcher main. The fetcher is used by the TLSRPT-reporter to
@@ -652,11 +716,6 @@ def tlsrpt_fetcher_main():
         fetcher.fetch_domain_details(sys.argv[1], sys.argv[2])
 
 
-# REVIEW: config should be an argument, such that we can instantiate the
-# dependency more easily (e.g. in test code to test different configuration
-# variants). A default argument might be useful here:
-#
-# def tlsrpt_receiver_main(config: ConfigReceiver=ConfigReceiver()):
 def tlsrpt_reporter_main():
     """
     Entry point to the reporter main. The reporter is the part that finally

@@ -628,6 +628,136 @@ class TLSRPTReporter:
                                  "WHERE day=? AND fetcherindex=? AND domain=?",
                                  (json.dumps(data), day, fetcherindex, dom))
         self.con.commit()
+
+    def aggregate_report_from_data(self, r, data):
+        """
+        Aggregate data into report
+        :param r: the report into which to aggregate the data
+        :param data: the data
+        """
+        # spolicy is the whole policy as a string, do not to be confused with the "policy-string" inside it
+        for spolicy in data:
+            tmp = data[spolicy]
+            cntrtotal = tmp["cntrtotal"]
+            cntrfailure = tmp["cntrfailure"]
+            failures = tmp["failures"]
+            if spolicy not in r:
+                r[spolicy] = {"cntrtotal": 0, "cntrfailure": 0, "failures": {}}
+            r[spolicy]["cntrtotal"] += cntrtotal
+            r[spolicy]["cntrfailure"] += cntrfailure
+            for failure in failures:
+                if failure not in r[spolicy]["failures"]:
+                    r[spolicy]["failures"][failure] = 0
+                r[spolicy]["failures"][failure] += failures[failure]
+
+    def render_report(self, day, dom, tlsrptrecord, data, report):
+        """
+        Render a report into its final form
+        :param day: Day for which to create the report
+        :param dom: Domain for which to create the report
+        :param tlsrptrecord: TLSRPT DNS record describing the recipients of the report
+        :param data: The data from which to create the report
+        :param report: The report
+        """
+        policies = []
+        for spolicy in data:
+            tmp = data[spolicy]
+            cntrtotal = tmp["cntrtotal"]
+            cntrfailure = tmp["cntrfailure"]
+            failures = tmp["failures"]
+            policy = json.loads(spolicy)
+            policy_type_names = {1: "tlsa", 2: "sts", 9: "no-policy-found"}  # mapping of policy types
+            policy["policy-type"] = policy_type_names[policy["policy-type"]]
+            npol = {"summary": {"total-failure-session-count": cntrfailure,
+                                "total-successful-session-count": cntrtotal - cntrfailure}}
+            npol["policy"] = policy
+            npol["failure-details"] = []
+            for sfailure in failures:
+                fdet = {}
+                failure = json.loads(sfailure)
+                fdmap = {  # mapping of failure detail short keys from receiver to long keys conforming to RFC8460
+                    "a": "additional-information",
+                    # "c": "failure-code",  # will be mapped via fcmap below
+                    "f": "failure-reason-code",
+                    "h": "receiving-mx-helo",
+                    "n": "receiving-mx-hostname",
+                    "r": "receiving-ip",
+                    "s": "sending-mta-ip"
+                }
+
+                fcmap = {  # failure code map
+                    # maps integer numbers from the internal receiver protocol to result-types defined in RFC8460
+                    # TLS negotiation failures
+                    201: "starttls-not-supported",
+                    202: "certificate-host-mismatch",
+                    203: "certificate-not-trusted",
+                    204: "certificate-expired",
+                    205: "validation-failure",
+
+                    # mta-sts related failures
+                    301: "sts-policy-fetch-error",
+                    302: "sts-policy-invalid",
+                    303: "sts-webpki-invalid",
+
+                    # dns related failures
+                    304: "tlsa-invalid",
+                    305: "dnssec-invalid",
+                    306: "dane-required"
+                }
+                for k in fdmap:
+                    if k in failure:
+                        fdet[fdmap[k]] = failure[k]
+                rtcode = "c"  # key for numeric result-type code in receiver data
+                if rtcode in failure:
+                    if failure[rtcode] in fcmap:
+                        fdet["result-type"] = fcmap[failure[rtcode]]
+                    else:
+                        logging.error("Undefined result type code %d", rtcode)
+                fdet["failed-session-count"] = failures[sfailure]
+                npol["failure-details"].append(fdet)
+            policies.append(npol)
+        report["policies"] = policies
+        cur = self.con.cursor()
+        cur.execute("INSERT INTO reports (day, domain, report) VALUES(?,?,?)", (day, dom, json.dumps(report)))
+        r_id = cur.lastrowid
+        for rua in parse_tlsrpt_record(tlsrptrecord):
+            cur.execute("INSERT INTO destinations (destination, d_r_id, retries, status, nexttry) VALUES(?,?,0,NULL,?)",
+                        (rua, r_id, self.cfg.schedule_report_delivery()))
+
+    def create_report_for(self, day, dom):
+        """
+        Creates one or multiple reports for a domain and a specific day.
+        Multiple reports can be created if there are different TLSRPT records and therefore different recipients.
+        :param day: Day for which to create the reports
+        :param dom: Domain for which to create the reports
+        """
+        logging.debug("Will create report for day %s domain %s", day, dom)
+        cur = self.con.cursor()
+        cur.execute("SELECT data FROM reportdata WHERE day=? AND domain=?", (day, dom))
+        reports = {}
+        for (data,) in cur:
+            j = json.loads(data)
+            for tlsrptrecord in j:
+                if tlsrptrecord not in reports:  # need to create new dict entry
+                    reports[tlsrptrecord] = {}
+                self.aggregate_report_from_data(reports[tlsrptrecord], j[tlsrptrecord])
+
+        for tlsrptrecord in reports:
+            rawreport = reports[tlsrptrecord]
+            report_domain = "dest.example.com"  # TODO
+            report_start_datetime = tlsrpt_report_start_datetime(day)
+            report_end_datetime = tlsrpt_report_end_datetime(day)
+            report_id = report_start_datetime + "_" + report_domain
+            report = {"organization-name": self.cfg.organization_name,
+                      "date-range": {
+                          "start-datetime": report_start_datetime,
+                          "end-datetime": report_end_datetime},
+                      "contact-info": self.cfg.contact_info,
+                      "report-id": report_id,
+                      }
+            self.render_report(day, dom, tlsrptrecord, rawreport, report)
+            # schedule sending to destinations
+            dests = parse_tlsrpt_record(tlsrptrecord)
         self.con.commit()
 
     def create_reports(self):
@@ -641,14 +771,36 @@ class TLSRPTReporter:
         curtofetch.execute("SELECT fetcherindex, domain FROM reportdata WHERE data IS NULL")
         for row in curtofetch:
             logging.warning("Incomplete data for domain %s by fetcher index %d", row[1], row[0])
-        print("TODO: aggregate and schedule reports")
-        self.con.commit()
+        # fetch all data keys with complete data and no report yet
+        curtofetch.execute("SELECT day, domain FROM reportdata WHERE status='fetched' "
+                           "AND NOT (day, domain) IN "
+                           "(SELECT day, domain FROM reportdata WHERE status IS NULL) "
+                           "AND NOT (day, domain) IN "
+                           "(SELECT day, domain FROM reports)")
+        for row in curtofetch:  # TODO for (day, dom) in...
+            self.create_report_for(row[0], row[1])
 
     def send_out_reports(self):
         """
         Send out the finished reports.
         """
-        logging.debug("Send out reports UNIMPLEMENTED")
+        logging.debug("Send out reports")
+        cur = self.con.cursor()
+        curu = self.con.cursor()
+        cur.execute(
+            "SELECT destination, d_r_id, report FROM destinations "
+            "LEFT JOIN reports on r_id=d_r_id WHERE destinations.status IS NULL")
+        for row in cur:
+            destination = row[0]
+            d_r_id = row[1]
+            report = row[2]
+            filename = "/tmp/testreport-" + str(d_r_id) + "-" + destination.replace("/", "_") + ".json"
+            logging.debug("Would send out report %s to %s, saving to %s", str(d_r_id), destination, filename)
+            with open(filename, "w") as file:
+                file.write(report)
+            curu.execute("UPDATE destinations SET status='sent' WHERE destination=? AND d_r_id=?",
+                         (destination, d_r_id))
+        self.con.commit()
 
     def wake_up_in(self, secs, force=False):
         """

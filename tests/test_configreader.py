@@ -186,22 +186,22 @@ class MyTestCase(unittest.TestCase):
                          {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
         self.assertRegex(cm.exception.__str__(), "__new__.. got an unexpected keyword argument 'b0rk_ocfe'")
 
-    def test_b0rkcmd(self):
-        with self.assertRaises(Exception) as cm:
-            self.do_test({'b0rk_ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c", 'oxfe': "f", 'oxfx': "f", 'oxxe': "e", 'oxxx': "d"},
-                         {'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
-                         {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
-                         {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
-        self.assertRegex(cm.exception.__str__(), "__new__.. got an unexpected keyword argument 'b0rk_ocfe'")
-
     @patch('sys.stderr', new_callable=StringIO)
-    def test_b0rkcfg(self, mock_stderr):
+    def test_b0rkcmd(self, mock_stderr):
         with self.assertRaises(SystemExit):
             self.do_test({'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c", 'oxfe': "f", 'oxfx': "f", 'oxxe': "e", 'oxxx': "d"},
                          {'b0rk_ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
                          {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
                          {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
         self.assertRegex(mock_stderr.getvalue(), r"dummy: error: unrecognized arguments: --b0rk_ocfe c")
+
+    def test_b0rkcfg(self):
+        with self.assertRaises(SyntaxError) as cm:
+            self.do_test({'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c", 'oxfe': "f", 'oxfx': "f", 'oxxe': "e", 'oxxx': "d"},
+                         {'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
+                         {'b0rk_ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
+                         {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
+        self.assertRegex(cm.exception.__str__(), r"Unknown key b0rk_ocfe in config file")
 
     def test_b0rkenv(self):  # mispelled or non-existent config options as environment variables cause no problem
         self.do_test({'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c", 'oxfe': "f", 'oxfx': "f", 'oxxe': "d", 'oxxx': "d"},

@@ -533,22 +533,29 @@ class TLSRPTReporter:
         self.cur.execute("SAVEPOINT domainlist")
         # read the domain list
         result = True
-        while True:
-            dom = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
-            logging.debug("Got line %s", dom)
-            if not dom:
-                logging.warning("Unexpected end of domain list")
-                result = False
-                break
-            if dom == ".":  # end of domain list reached
-                break
-            try:
-                self.cur.execute("INSERT INTO reportdata "
-                                 "(day, domain, data, fetcherindex, fetcher, retries, status, nexttry) "
-                                 "VALUES (?,?,NULL,?,?,0,NULL,?)",
-                                 (day, dom, fetcherindex, fetcher, tlsrpt_utc_time_now()))
-            except sqlite3.IntegrityError as e:
-                logging.warning(e)
+        try:
+            while result:
+                dom = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
+                logging.debug("Got line '%s'", dom)
+                if dom == ".":  # end of domain list reached
+                    break
+                if not dom:  # EOF
+                    # this is a warning instead of an error because a remote connection could have been interrupted
+                    # and a retry might succeed
+                    logging.warning("Unexpected end of domain list")
+                    result = False
+                    break
+                try:
+                    self.cur.execute("INSERT INTO reportdata "
+                                     "(day, domain, data, fetcherindex, fetcher, retries, status, nexttry) "
+                                     "VALUES (?,?,NULL,?,?,0,NULL,?)",
+                                     (day, dom, fetcherindex, fetcher, tlsrpt_utc_time_now()))
+                except sqlite3.IntegrityError as e:
+                    logging.warning(e)
+        except Exception as e:
+            logging.error("Unexpected exception: %s", e.__str__())
+            result = False
+
         if result:
             logging.info(f"DB-commit for fetcher {fetcherindex} {fetcher}")
             self.cur.execute("RELEASE SAVEPOINT domainlist")
@@ -601,12 +608,26 @@ class TLSRPTReporter:
         args = fetcher.split()
         args.append(day.__str__())
         args.append(dom)
-        fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
+        try:
+            fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
+        except FileNotFoundError as e:
+            logging.error("File not found when trying to run fetcher %s: %s", fetcher, e.__str__())
+            return
         alldata = fetcherpipe.stdout.read(TLSRPT_MAX_READ_FETCHER)
-        print("WE HAVE READ FROM FETCHER DETAILS: ", alldata)
-        j = json.loads(alldata)
-        self.curtoupdate.execute("UPDATE reportdata SET data=? WHERE day=? AND fetcherindex=? AND domain=?",
-                                 (json.dumps(j), day, fetcherindex, dom))
+        try:
+            j = json.loads(alldata)
+        except json.JSONDecodeError as e:
+            logging.error("Invalid JSON: %s", e.__str__())
+            return
+        gotdom = j.pop("d")
+        if gotdom != dom:
+            logging.error("Domain mismatch! Asked for %s but got reply for %s", dom, gotdom)
+            return
+        data = j.pop("policies")
+        self.curtoupdate.execute("UPDATE reportdata SET data=?, status='fetched' "
+                                 "WHERE day=? AND fetcherindex=? AND domain=?",
+                                 (json.dumps(data), day, fetcherindex, dom))
+        self.con.commit()
         self.con.commit()
 
     def create_reports(self):

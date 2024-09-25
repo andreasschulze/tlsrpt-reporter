@@ -441,7 +441,6 @@ class TLSRPTReporter:
         try:
             self.cur.execute("SELECT version, installdate FROM tlsrptreporterdbversion")
             row = self.cur.fetchone()
-            print("DB CHECK ROW IS ", row)
             if row[0] != 1:
                 logging.error("Database has wrong version, expected 1 but got %s", row)
                 sys.exit(EXIT_WRONG_DB_VERSION)
@@ -688,8 +687,8 @@ def tlsrpt_receiver_main():
     sock.bind(server_address)
     sock.settimeout(config.receiver_sockettimeout)
 
-    # Multiple receivers
-    receivers = [DummyReceiver(False), TLSRPTReceiverSQLite(config)]
+    # Multiple receivers to be set-up from configuration, for now hard-coded
+    receivers = [TLSRPTReceiverSQLite(config)]
 
     while True:
         alldata = None  # clear old data to prevent accidentally processing it twice
@@ -734,8 +733,7 @@ def tlsrpt_fetcher_main():
     fetcher = TLSRPTFetcherSQLite(config)
     if len(sys.argv) < 2:
         print("Usage: %s day [domain]", file=sys.stderr)
-        fetcher.fetch_domain_list(tlsrpt_utc_date_now())   # for testing just fetch
-        sys.exit(1)
+        sys.exit(EXIT_USAGE)
     if len(sys.argv) < 3:
         fetcher.fetch_domain_list(sys.argv[1])
     else:
@@ -760,12 +758,3 @@ def tlsrpt_reporter_main():
 
 if __name__ == "__main__":
     print("Call tlsrpt fetcher, receiver or reporter instead of this file", file=sys.stderr)
-    print()
-    while len(sys.argv) < 3:
-        print("Expanding argv...")
-        sys.argv.append("dummy")
-    sys.argv[1] = str(tlsrpt_utc_date_now())
-    sys.argv[2] = "test-0.example.com"
-    print("Now will do fetcher test-run !!! Args=", sys.argv)
-    print()
-    tlsrpt_fetcher_main()

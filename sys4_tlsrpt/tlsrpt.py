@@ -462,7 +462,7 @@ class TLSRPTReporter:
         cur.execute("SELECT * FROM fetchjobs WHERE day=?", (yesterday,))
         row = cur.fetchone()
         if row is not None:  # Jobs already exist
-            self.wake_up_at(300)  # wake up every five minutes to check
+            self.wake_up_in(300)  # wake up every five minutes to check
             return
         # create now fetcher jobs
         fidx = 0

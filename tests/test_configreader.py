@@ -94,7 +94,10 @@ class MyTestCase(unittest.TestCase):
                 expect[k] = None
         cexp = ConfigTest(**expect)
         self.assertEqual(cexp, cres)
-        os.remove(self.cfgfilename)
+        try:
+            os.remove(self.cfgfilename)
+        except OSError:
+            pass
 
     def test_override(self):
         self.do_test({"ocfe": "c", 'ocfx': "d", 'ocxe': "d", 'ocxx': "d", 'oxfe': "d", 'oxfx': "d", 'oxxe': "d", 'oxxx': "d"},

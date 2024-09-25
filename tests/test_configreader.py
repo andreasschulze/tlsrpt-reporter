@@ -201,7 +201,7 @@ class MyTestCase(unittest.TestCase):
                          {'b0rk_ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
                          {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
                          {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
-        self.assertRegexp(mock_stderr.getvalue(), r"dummy: error: unrecognized arguments: --b0rk_ocfe c")
+        self.assertRegex(mock_stderr.getvalue(), r"dummy: error: unrecognized arguments: --b0rk_ocfe c")
 
     def test_b0rkenv(self):  # mispelled or non-existent config options as environment variables cause no problem
         self.do_test({'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c", 'oxfe': "f", 'oxfx': "f", 'oxxe': "d", 'oxxx': "d"},

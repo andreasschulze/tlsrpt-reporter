@@ -756,8 +756,6 @@ class TLSRPTReporter:
                       "report-id": report_id,
                       }
             self.render_report(day, dom, tlsrptrecord, rawreport, report)
-            # schedule sending to destinations
-            dests = parse_tlsrpt_record(tlsrptrecord)
         self.con.commit()
 
     def create_reports(self):

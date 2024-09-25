@@ -580,7 +580,7 @@ class TLSRPTReporter:
         :type fetcherindex: The fetchers index in the configuration
         :param dom: The domain for which to fetch the details
         """
-        logging.debug("Fetch data for domain %s from %d %s", dom, fetcherindex, fetcher)
+        logging.debug("Fetch data from %d %s for domain %s", fetcherindex, fetcher, dom)
         args = fetcher.split()
         args.append(day.__str__())
         args.append(dom)
@@ -690,8 +690,7 @@ def tlsrpt_receiver_main():
             for receiver in receivers:
                 receiver.socket_timeout()
         except OSError as err:
-            print("Dummy error appened? WTF?")
-            print(err)
+            logging.error(f"OS-Error: {err}")
             raise
         except UnicodeDecodeError as err:
             logging.error(f"Malformed utf8 data received: {err}")

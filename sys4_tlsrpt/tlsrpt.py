@@ -348,6 +348,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
                 print(row[0])
             except BrokenPipeError as err:
                 logging.warning(f"Error when writing line {linenumber} : ", err)
+                return
         # terminate domain list with a single dot
         print(".")
 

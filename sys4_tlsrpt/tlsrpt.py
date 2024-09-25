@@ -300,7 +300,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             logging.warning("No policies found in datagram: %s", datagram)
             return
         for policy in datagram["policies"]:
-            self._add_policy(day, datagram["d"], policy)
+            self._add_policy(day, datagram["d"], datagram["pr"], policy)
 
     def add_datagram(self, datagram):
         # process the datagram

@@ -199,10 +199,10 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
 
     def _setup_database(self):
         try:
-            ddl = ["CREATE TABLE finalresults(day, domain, policy, cntrtotal, cntrfailure, "
-                   "PRIMARY KEY(day, domain, policy))",
-                   "CREATE TABLE failures(day, domain, policy, reason, cntr, "
-                   "PRIMARY KEY(day, domain, policy, reason))",
+            ddl = ["CREATE TABLE finalresults(day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure, "
+                   "PRIMARY KEY(day, domain, tlsrptrecord, policy))",
+                   "CREATE TABLE failures(day, domain, tlsrptrecord, policy, reason, cntr, "
+                   "PRIMARY KEY(day, domain, tlsrptrecord, policy, reason))",
                    "CREATE TABLE tlsrptreceiverdbversion(version, installdate)",
                    "INSERT INTO tlsrptreceiverdbversion(version, installdate) "
                    " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'))"]
@@ -237,24 +237,24 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         self.uncommitted_datagrams = 0
         self.con.commit()
 
-    def _add_policy(self, day, domain, policy):
+    def _add_policy(self, day, domain, tlsrptrecord, policy):
         # Remove unneeded keys from policy before writing to database, keeping needed values
         policy_failed = policy.pop("f")
         failures = policy.pop("failure-details", [])
         policy.pop("t", None)
-        p = str(policy)
+        p = json.dumps(policy)
         self.cur.execute(
-            "INSERT INTO finalresults (day, domain, policy, cntrtotal, cntrfailure) VALUES(?,?,?,1,?) "
-            "ON CONFLICT(day, domain, policy) "
+            "INSERT INTO finalresults (day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure) VALUES(?,?,?,?,1,?) "
+            "ON CONFLICT(day, domain, tlsrptrecord, policy) "
             "DO UPDATE SET cntrtotal=cntrtotal+1, cntrfailure=cntrfailure+?",
-            (day, domain, p, policy_failed, policy_failed))
+            (day, domain, tlsrptrecord, p, policy_failed, policy_failed))
 
         for f in failures:
             self.cur.execute(
-                "INSERT INTO failures (day, domain, policy, reason, cntr) VALUES(?,?,?,?,1) "
-                "ON CONFLICT(day, domain, policy, reason) "
+                "INSERT INTO failures (day, domain, tlsrptrecord, policy, reason, cntr) VALUES(?,?,?,?,?,1) "
+                "ON CONFLICT(day, domain, tlsrptrecord, policy, reason) "
                 "DO UPDATE SET cntr=cntr+1",
-                (day, domain, p, str(f)))
+                (day, domain, tlsrptrecord, p, json.dumps(f)))
 
     def _add_policies_from_datagram(self, day, datagram):
         if "policies" not in datagram:
@@ -300,21 +300,25 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
         logging.info(f"TLSRPT fetcher domain details starting for day {day} and domain {domain}")
         policies = {}
         dlcursor = self.con.cursor()
-        dlcursor.execute("SELECT domain, policy, cntrtotal, cntrfailure FROM finalresults WHERE day=? AND domain=?",
+        dlcursor.execute("SELECT domain, policy, tlsrptrecord, cntrtotal, cntrfailure "
+                         "FROM finalresults WHERE day=? AND domain=?",
                          (day, domain))
         for row in dlcursor:
-            (domain, policy, cntrtotal, cntrfailure) = row
-            if policy not in policies:  # need to create new dict entry
-                policies[policy] = {"cntrtotal": 0, "cntrfailure": 0, "failures": {}}
-            policies[policy]["cntrtotal"] += cntrtotal
-            policies[policy]["cntrfailure"] += cntrfailure
+            (domain, policy, tlsrptrecord, cntrtotal, cntrfailure) = row
+            if tlsrptrecord not in policies:  # need to create new dict entry
+                policies[tlsrptrecord] = {}
+            if policy not in policies[tlsrptrecord]:  # need to create new dict entry
+                policies[tlsrptrecord][policy] = {"cntrtotal": 0, "cntrfailure": 0, "failures": {}}
+            policies[tlsrptrecord][policy]["cntrtotal"] += cntrtotal
+            policies[tlsrptrecord][policy]["cntrfailure"] += cntrfailure
 
-        dlcursor.execute("SELECT policy, reason, cntr FROM failures WHERE day=? AND domain=?", (day, domain))
+        dlcursor.execute("SELECT tlsrptrecord, policy, reason, cntr FROM failures WHERE day=? AND domain=?",
+                         (day, domain))
         for row in dlcursor:
-            (policy, reason, cntr) = row
-            if reason not in policies[policy]["failures"]:  # need to create new dict entry
-                policies[policy]["failures"][reason] = 0
-            policies[policy]["failures"][reason] += cntr
+            (tlsrptrecord, policy, reason, cntr) = row
+            if reason not in policies[tlsrptrecord][policy]["failures"]:  # need to create new dict entry
+                policies[tlsrptrecord][policy]["failures"][reason] = 0
+            policies[tlsrptrecord][policy]["failures"][reason] += cntr
         details = {"d": domain, "policies": policies}
         print(json.dumps(details, indent=4))
 
@@ -350,11 +354,12 @@ class TLSRPTReporter:
         try:
             ddl = ["CREATE TABLE fetchjobs(day, fetcherindex, fetcher, retries, status, nexttry, "
                    "PRIMARY KEY(day, fetcherindex))",
-                   "CREATE TABLE reports(day, domain, report, PRIMARY KEY(day, domain))",
-                   "CREATE TABLE reportdata(day, domain, data, fetcherindex, fetcher, retries, status, nexttry, "
-                   "PRIMARY KEY(day, domain, fetcherindex))",
-                   "CREATE TABLE destinations(day, domain, destination, retries, status, nexttry, "
-                   "PRIMARY KEY(day, domain, destination))",
+                   "CREATE TABLE reportdata(day, domain, data, fetcher, fetcherindex, retries, status, nexttry, "
+                   "PRIMARY KEY(day, domain, fetcher))",
+                   "CREATE TABLE reports(r_id INTEGER PRIMARY KEY ASC, day, domain, uniqid, tlsrptrecord, report)",
+                   "CREATE TABLE destinations(destination, d_r_id INTEGER, retries, status, nexttry, "
+                   "PRIMARY KEY(destination, d_r_id), "
+                   "FOREIGN KEY(d_r_id) REFERENCES reports(r_id))",
                    "CREATE TABLE tlsrptreporterdbversion(version, installdate)",
                    "INSERT INTO tlsrptreporterdbversion(version, installdate) "
                    " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'))"]

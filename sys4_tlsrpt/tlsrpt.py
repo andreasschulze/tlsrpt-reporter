@@ -257,11 +257,9 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             logging.error("Failed "+reason+" with %d datagrams: %s", self.uncommitted_datagrams, e)
 
     def timed_commit(self):
-        logging.debug("Database commit due to timeout with %d datagrams" % self.uncommitted_datagrams)
         self._db_commit("Database commit due to timeout")
 
     def commit_after_n_datagrams(self):
-        logging.debug("Database commit with %d datagrams" % self.uncommitted_datagrams)
         self._db_commit("Database commit")
 
     def _add_policy(self, day, domain, tlsrptrecord, policy):

@@ -19,85 +19,41 @@
 
 import argparse
 import configparser
-import collections
-import logging
 import os
 
-logger = logging.getLogger(__name__)
 
-
-ConfigReceiver = collections.namedtuple("ConfigReceiver",
-                                        ['receiver_dbname',
-                                         'receiver_socketname',
-                                         'receiver_sockettimeout',
-                                         'max_uncommited_datagrams',
-                                         'receiver_logfilename',
-                                         'fetcher_logfilename',
-                                         'dump_path_for_invalid_datagram'])
-
-ConfigReporter = collections.namedtuple("ConfigReporter",
-                                        ['reporter_logfilename',
-                                         'reporter_dbname',
-                                         'reporter_fetchers',
-                                         'organization_name',
-                                         'contact_info',
-                                         'max_receiver_timeout',
-                                         'max_receiver_timediff',
-                                         'max_retries_domainlist',
-                                         'min_wait_domainlist',
-                                         'max_wait_domainlist',
-                                         'max_retries_domaindetails',
-                                         'min_wait_domaindetails',
-                                         'max_wait_domaindetails'])
-
-options_receiver = {
-    "receiver_dbname": {"type": str, "default": "", "help": ""},
-    "receiver_socketname": {"type": str, "default": "", "help": ""},
-    "receiver_sockettimeout": {"type": int, "default": "", "help": ""},
-    "max_uncommited_datagrams": {"type": int, "default": "", "help": ""},
-    "receiver_logfilename": {"type": str, "default": "", "help": ""},
-    "fetcher_logfilename": {"type": str, "default": "", "help": ""},
-    "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": ""},
-}
-
-options_reporter = {
-    "reporter_logfilename": {"type": str, "default": "", "help": ""},
-    "reporter_dbname": {"type": str, "default": "", "help": ""},
-    "reporter_fetchers": {"type": str, "default": "", "help": ""},
-    "organization_name": {"type": str, "default": "", "help": ""},
-    "contact_info": {"type": str, "default": "", "help": ""},
-    "max_receiver_timeout": {"type": int, "default": "10", "help": "Maximum expected receiver timeout"},
-    "max_receiver_timediff": {"type": int, "default": "", "help": "Maximum expected receiver time difference"},
-    "max_retries_domainlist": {"type": int, "default": "", "help": ""},
-    "min_wait_domainlist": {"type": int, "default": "", "help": ""},
-    "max_wait_domainlist": {"type": int, "default": "", "help": ""},
-    "max_retries_domaindetails": {"type": int, "default": "", "help": ""},
-    "min_wait_domaindetails": {"type": int, "default": "", "help": ""},
-    "max_wait_domaindetails": {"type": int, "default": "", "help": ""}
-}
-
-
-def _options_from_cmd(options):
+def _options_from_cmd(options, pospar):
     parser = argparse.ArgumentParser(allow_abbrev=False)
     for k in options:
         parser.add_argument("--" + k, type=options[k]["type"], help=options[k]["help"])
+    for k in pospar:
+        parser.add_argument(k, type=pospar[k]["type"], help=pospar[k]["help"], nargs="?")
     tmp = parser.parse_args()
-    return vars(tmp)  # extract dict from Namespace object
+    o = vars(tmp)  # extract dict from Namespace object
+    opts = {}  # configuration options
+    for k in options:
+        opts[k] = o[k]
+    pars = {}  # positional
+    for k in pospar:
+        pars[k] = o[k]
+    return opts, pars
 
 
-def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_section: str, envprefix: str):
+def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_section: str, envprefix: str, pospar: dict):
     """
     Get options dict from command line, configuration file, environment variables and defaults.
     :param options: dict of option definitions
     :param default_config_file: name of the default config file to read when no --config_file option is given
     :param config_section: name of the section to read from a config file
     :param envprefix: prefix for environment variable names
-    :return: dict of all options and their values from command line, config file, environment or the defaults
+    :param pospar: options only valid for command line, these are positional parameters
+    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults
+            and the positional parameters from the command line
     """
     # ocmd: options from command line
     # Add a parameter to specify a config file on the command line
-    additional_options = {"config_file": {"type": str, "default": None, "help": "Configuration file"}}
-    ocmd = _options_from_cmd({**options, **additional_options})
+    config_file_options = {"config_file": {"type": str, "default": None, "help": "Configuration file"}}
+    (ocmd, params) = _options_from_cmd({**options, **config_file_options}, pospar)
     # remove the added parameter from the results
     user_config_file = ocmd.pop("config_file", None)
 
@@ -108,19 +64,22 @@ def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_sec
             raise FileNotFoundError("Config file not found: " + user_config_file)
         config_file = user_config_file
 
-    cp = configparser.ConfigParser()
-    cp.read(config_file)
-
     ocfg = {}
-    if config_section not in cp.sections():  # raise clearer exception instead of just running into KeyError
-        raise SyntaxError("Section " + config_section + " not found in config file " + config_file)
-    for (k, v) in cp.items(config_section):
+    if os.path.isfile(config_file):
+        cp = configparser.ConfigParser()
+        cp.read(config_file)
+        if config_section not in cp.sections():  # raise clearer exception instead of just running into KeyError
+            raise SyntaxError("Section " + config_section + " not found in config file " + config_file)
+        ocfgitems = cp.items(config_section)
+    else:
+        ocfgitems = {}
+
+    for (k, v) in ocfgitems:
         if v is None or v == "":
             raise SyntaxError("Key " + k + " without value in config file " + config_file)
         elif k not in options:
             raise SyntaxError("Unknown key " + k + " in config file " + config_file)
         else:
-            logging.debug("Config file has ", k, ":", v)
             ocfg[k] = options[k]["type"](v)
 
     # oenv: options from environment
@@ -148,4 +107,4 @@ def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_sec
         if tmp is None and k in odef:
             tmp = odef[k]
         result[k] = tmp
-    return result
+    return result, params

@@ -17,6 +17,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 
+import collections
 import json
 import logging
 import os
@@ -28,9 +29,12 @@ import subprocess
 import sys
 import sqlite3
 import time
+import urllib.parse
+
+logger = logging.getLogger(__name__)
 
 from utility import *
-
+from config import *
 
 # Constants
 TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel domain list"
@@ -48,119 +52,96 @@ DEVELMODE = True
 DEVELMODE_DBQUERIES = True
 
 
-class ConfigReceiver:
-    @property
-    def receiver_dbname(self):
-        return "/tmp/tlsrpt-receiver.sqlite"
+ConfigReceiver = collections.namedtuple("ConfigReceiver",
+                                        ['storage',
+                                         'receiver_socketname',
+                                         'receiver_sockettimeout',
+                                         'max_uncommited_datagrams',
+                                         'retry_commit_datagram_count',
+                                         'receiver_logfilename',
+                                         'fetcher_logfilename',
+                                         'log_level',
+                                         'dump_path_for_invalid_datagram'])
 
-    @property
-    def receiver_socketname(self):
-        return "/tmp/tlsrpt-receiver.socket"
+options_receiver = {
+    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite", "help": "Storage backend, multiple backends separated by comma"},
+    "receiver_socketname": {"type": str, "default": "", "help": ""},
+    "receiver_sockettimeout": {"type": int, "default": 5, "help": ""},
+    "max_uncommited_datagrams": {"type": int, "default": 1000, "help": ""},
+    "retry_commit_datagram_count": {"type": int, "default": 1000, "help": ""},
+    "receiver_logfilename": {"type": str, "default": "/var/log/tlsrpt/receiver.log", "help": ""},
+    "fetcher_logfilename": {"type": str, "default": "/var/log/tlsrpt/fetcher.log", "help": ""},
+    "log_level": {"type": str, "default": "warn", "help": "Log level"},
+    "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": ""},
+}
 
-    @property
-    def receiver_sockettimeout(self):
-        """Database will commit every n seconds """
-        return 5
-
-    @property
-    def max_uncommited_datagrams(self):
-        """Database will commit after n datagrams """
-        return 1000
-
-    @property
-    def retry_commit_every_n_datagrams(self):
-        """Database will retry a failed commit every n datagrams """
-        return 100
-
-    @property
-    def receiver_logfilename(self):
-        return "/tmp/tlsrpt-receiver.log"
-
-    @property
-    def fetcher_logfilename(self):
-        return self.receiver_logfilename
-
-    @property
-    def dump_path_for_invalid_datagram(self):
-        return "/tmp/debug-payload"
-
-    @property
-    def hook_pre_fetchdomainlist(self):
-        return None
+"""
+Positional parameters for fetcher
+"""
+pospars_fetcher = {
+    "day": {"type": str, "help": "Day to fetch data for"},
+    "domain": {"type": str, "help": "Domain to fetch data for, if omitted fetch list of domains"},
+}
 
 
-class ConfigReporter:
+ConfigReporter = collections.namedtuple("ConfigReporter",
+                                        ['reporter_logfilename',
+                                         'log_level',
+                                         'reporter_dbname',
+                                         'reporter_fetchers',
+                                         'organization_name',
+                                         'contact_info',
+                                         'spread_out_delivery',
+                                         'interval_main_loop',
+                                         'max_receiver_timeout',
+                                         'max_receiver_timediff',
+                                         'max_retries_domainlist',
+                                         'min_wait_domainlist',
+                                         'max_wait_domainlist',
+                                         'max_retries_domaindetails',
+                                         'min_wait_domaindetails',
+                                         'max_wait_domaindetails'])
 
-    @property
-    def reporter_logfilename(self):
-        return "/tmp/tlsrpt-reporter.log"
+options_reporter = {
+    "reporter_logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": ""},
+    "log_level": {"type": str, "default": "warn", "help": "Log level"},
+    "reporter_dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": ""},
+    "reporter_fetchers": {"type": str, "default": "/usr/libexec/tlsrpt/fetcher.py", "help": ""},
+    "organization_name": {"type": str, "default": "", "help": ""},
+    "contact_info": {"type": str, "default": "", "help": ""},
+    "spread_out_delivery": {"type": int, "default": 36000, "help": "Time range in seconds to spread out report delivery"},
+    "interval_main_loop": {"type": int, "default": 300, "help": "Maximum sleep interval in main loop"},
+    "max_receiver_timeout": {"type": int, "default": 10, "help": "Maximum expected receiver timeout"},
+    "max_receiver_timediff": {"type": int, "default": 10, "help": "Maximum expected receiver time difference"},
+    "max_retries_domainlist": {"type": int, "default": 5, "help": ""},
+    "min_wait_domainlist": {"type": int, "default": 30, "help": ""},
+    "max_wait_domainlist": {"type": int, "default": 300, "help": ""},
+    "max_retries_domaindetails": {"type": int, "default": 5, "help": ""},
+    "min_wait_domaindetails": {"type": int, "default": 30, "help": ""},
+    "max_wait_domaindetails": {"type": int, "default": 300, "help": ""}
+}
 
-    @property
-    def reporter_dbname(self):
-        return "/tmp/tlsrpt-reporter.sqlite"
 
-    @property
-    def reporter_fetchers(self):
-        return ["python3 tlsrpt_fetcher.py "]
 
-    @property
-    def organization_name(self):
-        return "EXAMPLE.inc"
 
-    @property
-    def contact_info(self):
-        return "smtp-tls-reporting@example.com"
 
-    @property
-    def max_receiver_timeout(self):
-        return 1
-
-    @property
-    def max_receiver_timediff(self):
-        return -2
-
-    @property
-    def max_retries_domainlist(self):
-        return 3
-
-    @property
-    def min_wait_domainlist(self):
-        return 300
-
-    @property
-    def max_wait_domainlist(self):
-        return 360
-
-    @property
-    def spread_out_delivery(self):
-        return 36000
-
-    def wait_domainlist(self):
-        """
-        Calculates a random wait period
-
-        :return: seconds to wait before next retry
-        """
-        waits = random.randint(self.min_wait_domainlist, self.max_wait_domainlist)  # 5 to 6 minutes
-        if DEVELMODE:
-            waits = random.randint(1, 3)  # 1 to 3 seconds for testing
-        return waits
-
-    def schedule_report_delivery(self):
-        secs = random.randint(0, self.spread_out_delivery)
-        if DEVELMODE:
-            secs = 0
-        return tlsrpt_utc_time_now() + datetime.timedelta(seconds=secs)
-
-    @property
-    def interval_main_loop(self):
-        return 23
+def setup_logging(filename, level):
+    logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s %(lineno)s : %(message)s", level=logging.NOTSET)
+    logger.addHandler(logging.FileHandler(filename))
+    numeric_level = getattr(logging, level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError("Invalid log level: %s" % level)
+    logger.setLevel(numeric_level)
 
 
 class TLSRPTReceiver(metaclass=ABCMeta):
     """
     Abstract base class for TLSRPT receiver implementations
     """
+    DEFAULT_CONFIG_FILE = "/etc/tlsrpt/receiver.cfg"
+    CONFIG_SECTION = "tlsrpt_receiver"
+    ENVIRONMENT_PREFIX = "TLSRPT_"
+
     @abstractmethod
     def add_datagram(self, datagram):
         """
@@ -176,6 +157,15 @@ class TLSRPTReceiver(metaclass=ABCMeta):
         """
         pass
 
+    @staticmethod
+    def factory(url: str, config: ConfigReceiver):
+        if url.startswith("sqlite:"):
+            return TLSRPTReceiverSQLite(url, config)
+        elif url.startswith("dummy:"):
+            return DummyReceiver(url, config)
+        else:
+            raise SyntaxError(f"Unsupported receiver URL: '{url}'")
+
 
 class DummyReceiver(TLSRPTReceiver):
     """
@@ -183,32 +173,41 @@ class DummyReceiver(TLSRPTReceiver):
     This is used during development to test support for multiple receivers.
     """
 
-    def __init__(self, dolog):
+    def __init__(self, url: str, config: ConfigReceiver):
+        parsed = urllib.parse.urlparse(urllib.parse.unquote(url))
+        if parsed.scheme != "dummy":
+            raise Exception(f"DummyReceiver can not be instantiated from '{url}'")
+        dolog = (parsed.query == "log")
         self.dolog = dolog
 
     def add_datagram(self, datagram):
         if self.dolog:
-            logging.info("Dummy receiver got datagram of {len(datagram)} bytes")
+            logger.info(f"Dummy receiver got datagram {datagram}")
 
     def socket_timeout(self):
         if self.dolog:
-            logging.info("Dummy receiver got socket timeout")
+            logger.info("Dummy receiver got socket timeout")
 
 
 class TLSRPTReceiverSQLite(TLSRPTReceiver):
-    def __init__(self, config: ConfigReceiver):
+    def __init__(self, url: str, config: ConfigReceiver):
         """
         :type config: ConfigReceiver
         """
+        parsed = urllib.parse.urlparse(urllib.parse.unquote(url))
+        if parsed.scheme != "sqlite":
+            raise Exception(f"SQLiteReceiver can not be instantiated from '{url}'")
+
         self.cfg = config
         self.uncommitted_datagrams = 0
-        self.dbname = self.cfg.receiver_dbname
+        self.dbname = parsed.path
+        logger.debug("Try to open database '%s'", self.dbname)
         self.con = sqlite3.connect(self.dbname)
         self.cur = self.con.cursor()
         if self._check_database():
-            logging.info("Database %s looks OK", self.dbname)
+            logger.info("Database %s looks OK", self.dbname)
         else:
-            logging.info("Create new database %s", self.dbname)
+            logger.info("Create new database %s", self.dbname)
             self._setup_database()
         # Settings for flushing to disk
         self.commitEveryN = self.cfg.max_uncommited_datagrams
@@ -226,9 +225,9 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             for ddlstatement in ddl:
                 self.cur.execute(ddlstatement)
             self.con.commit()
-            logging.info("Database '%s' setup finished", self.dbname)
+            logger.info("Database '%s' setup finished", self.dbname)
         except Exception as err:
-            logging.error("Database '%s' setup failed: %s", self.dbname, err)
+            logger.error("Database '%s' setup failed: %s", self.dbname, err)
             sys.exit(EXIT_DB_SETUP_FAILURE)
 
     def _check_database(self):
@@ -236,11 +235,11 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             self.cur.execute("SELECT version, installdate FROM tlsrptreceiverdbversion")
             row = self.cur.fetchone()
             if row[0] != 1:
-                logging.error("Database has wrong version, expected 1 but got %s", row)
+                logger.error("Database has wrong version, expected 1 but got %s", row)
                 sys.exit(EXIT_WRONG_DB_VERSION)
             return True
         except Exception as err:
-            logging.error("Database check failed: %s", err)
+            logger.info("Database check failed: %s", err)
             return False
 
     def _db_commit(self, reason):
@@ -251,10 +250,10 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         """
         try:
             self.con.commit()
-            logging.debug((reason+" with %d datagrams") % self.uncommitted_datagrams)
+            logger.debug((reason+" with %d datagrams") % self.uncommitted_datagrams)
             self.uncommitted_datagrams = 0
         except sqlite3.OperationalError as e:
-            logging.error("Failed "+reason+" with %d datagrams: %s", self.uncommitted_datagrams, e)
+            logger.error("Failed "+reason+" with %d datagrams: %s", self.uncommitted_datagrams, e)
 
     def timed_commit(self):
         self._db_commit("Database commit due to timeout")
@@ -275,7 +274,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         failures = policy.pop("failure-details", [])  # the failures encountered
         failure_count = policy.pop("t", None)  # number of failures
         if DEVELMODE and failure_count != len(failures):
-            logging.error("Failure count mismatch in received datagram: %d reported versus %d failured details: %s",
+            logger.error("Failure count mismatch in received datagram: %d reported versus %d failured details: %s",
                           failure_count, len(failures), json.dumps(failures))
         p = json.dumps(policy)
         self.cur.execute(
@@ -298,7 +297,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         :param datagram: The received datagram
         """
         if "policies" not in datagram:
-            logging.warning("No policies found in datagram: %s", datagram)
+            logger.warning("No policies found in datagram: %s", datagram)
             return
         for policy in datagram["policies"]:
             self._add_policy(day, datagram["d"], datagram["pr"], policy)
@@ -311,7 +310,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         if self.uncommitted_datagrams >= self.commitEveryN:
             # a database problem can cause a commit-attempt to hang
             # do not retry after each additional datagram but wait for more data to accumulate before retrying
-            if (self.uncommitted_datagrams-self.commitEveryN) % self.cfg.retry_commit_every_n_datagrams == 0:
+            if (self.uncommitted_datagrams-self.commitEveryN) % self.cfg.retry_commit_datagram_count == 0:
                 self.commit_after_n_datagrams()
 
     def socket_timeout(self):
@@ -330,7 +329,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
         List domains contained in this receiver database for a specific day
         :param day: The day for which to create a report
         """
-        logging.info(f"TLSRPT fetcher domain list starting for day {day}")
+        logger.info(f"TLSRPT fetcher domain list starting for day {day}")
         # protocol header line 1: the protocol version
         print(TLSRPT_FETCHER_VERSION_STRING_V1)
         # line 2: timeout in seconds so fetching can be rescheduled after a timeout commit, or warn about too big delay
@@ -347,7 +346,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
                 linenumber += 1
                 print(row[0])
             except BrokenPipeError as err:
-                logging.warning(f"Error when writing line {linenumber} : ", err)
+                logger.warning(f"Error when writing line {linenumber} : ", err)
                 return
         # terminate domain list with a single dot
         print(".")
@@ -358,14 +357,13 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
         :param day: The day for which to print the report details
         :param domain: The domain for which to print the report details
         """
-        logging.info(f"TLSRPT fetcher domain details starting for day {day} and domain {domain}")
+        logger.info(f"TLSRPT fetcher domain details starting for day {day} and domain {domain}")
         policies = {}
         dlcursor = self.con.cursor()
         dlcursor.execute("SELECT domain, policy, tlsrptrecord, cntrtotal, cntrfailure "
                          "FROM finalresults WHERE day=? AND domain=?",
                          (day, domain))
-        for row in dlcursor:
-            (domain, policy, tlsrptrecord, cntrtotal, cntrfailure) = row
+        for (domain, policy, tlsrptrecord, cntrtotal, cntrfailure) in dlcursor:
             if tlsrptrecord not in policies:  # need to create new dict entry
                 policies[tlsrptrecord] = {}
             if policy not in policies[tlsrptrecord]:  # need to create new dict entry
@@ -375,8 +373,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
 
         dlcursor.execute("SELECT tlsrptrecord, policy, reason, cntr FROM failures WHERE day=? AND domain=?",
                          (day, domain))
-        for row in dlcursor:
-            (tlsrptrecord, policy, reason, cntr) = row
+        for (tlsrptrecord, policy, reason, cntr) in dlcursor:
             if reason not in policies[tlsrptrecord][policy]["failures"]:  # need to create new dict entry
                 policies[tlsrptrecord][policy]["failures"][reason] = 0
             policies[tlsrptrecord][policy]["failures"][reason] += cntr
@@ -399,9 +396,9 @@ class TLSRPTReporter:
         self.curtoupdate = self.con.cursor()
         self.wakeuptime = tlsrpt_utc_time_now()
         if self._check_database():
-            logging.info("Database %s looks OK", self.dbname)
+            logger.info("Database %s looks OK", self.dbname)
         else:
-            logging.info("Create new database %s", self.dbname)
+            logger.info("Create new database %s", self.dbname)
             self._setup_database()
         if DEVELMODE_DBQUERIES:
             self.con.set_trace_callback(print)
@@ -424,12 +421,12 @@ class TLSRPTReporter:
                    "INSERT INTO tlsrptreporterdbversion(version, installdate) "
                    " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'))"]
             for ddlstatement in ddl:
-                logging.debug("Database '%s' DDL %s", self.dbname, ddlstatement)
+                logger.debug("Database '%s' DDL %s", self.dbname, ddlstatement)
                 self.cur.execute(ddlstatement)
             self.con.commit()
-            logging.info("Database '%s' setup finished", self.dbname)
+            logger.info("Database '%s' setup finished", self.dbname)
         except Exception as err:
-            logging.error("Database '%s' setup failed: %s", self.dbname, err)
+            logger.error("Database '%s' setup failed: %s", self.dbname, err)
             sys.exit(EXIT_DB_SETUP_FAILURE)
 
     def _check_database(self) -> bool:
@@ -442,18 +439,39 @@ class TLSRPTReporter:
             self.cur.execute("SELECT version, installdate FROM tlsrptreporterdbversion")
             row = self.cur.fetchone()
             if row[0] != 1:
-                logging.error("Database has wrong version, expected 1 but got %s", row)
+                logger.error("Database has wrong version, expected 1 but got %s", row)
                 sys.exit(EXIT_WRONG_DB_VERSION)
             return True
         except Exception as err:
-            logging.error("Database check failed: %s", err)
+            logger.error("Database check failed: %s", err)
             return False
+
+    def get_fetchers(self):
+        """
+        Parse and extract fetchers from config
+        :return: An array of fetcher commands
+        """
+        fetchers = self.cfg.reporter_fetchers.split(",")
+        return fetchers
+
+    def wait_domainlist(self):
+        """
+        Calculates a random wait period
+
+        :return: seconds to wait before next retry
+        """
+        waits = random.randint(self.cfg.min_wait_domainlist, self.cfg.max_wait_domainlist)  # 5 to 6 minutes
+        return waits
+
+    def schedule_report_delivery(self):
+        secs = random.randint(0, self.cfg.spread_out_delivery)
+        return tlsrpt_utc_time_now() + datetime.timedelta(seconds=secs)
 
     def check_day(self):
         """
         Check if a new day has started and create jobs for the new day to be processed in the next steps
         """
-        logging.debug("Check day")
+        logger.debug("Check day")
         cur = self.con.cursor()
         yesterday = tlsrpt_utc_date_yesterday()
         if DEVELMODE:  # use today´s data during development
@@ -466,7 +484,7 @@ class TLSRPTReporter:
             return
         # create now fetcher jobs
         fidx = 0
-        for fetcher in self.cfg.reporter_fetchers:
+        for fetcher in self.get_fetchers():
             fidx += 1
             cur.execute("INSERT INTO fetchjobs (day, fetcherindex, fetcher, retries, status, nexttry)"
                         "VALUES (?,?,?,0,NULL,?)", (yesterday, fidx, fetcher, now))
@@ -476,23 +494,22 @@ class TLSRPTReporter:
         """
         Collect domains from the fetchers
         """
-        logging.debug("Collect domains")
+        logger.debug("Collect domains")
         curs = self.con.cursor()
         curu = self.con.cursor()
         now = tlsrpt_utc_time_now()
         curs.execute("SELECT day, fetcherindex, fetcher, retries FROM fetchjobs "
                      "WHERE status IS NULL AND nexttry<?", (now,))
-        for row in curs:
-            (day, fetcherindex, fetcher, retries) = row
+        for (day, fetcherindex, fetcher, retries) in curs:
             if self.collect_domains_from(day, fetcher, fetcherindex):
-                logging.info("Fetcher %d %s finished in run %d", fetcherindex, fetcher, retries)
+                logger.info("Fetcher %d %s finished in run %d", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET status='ok' WHERE day=? AND fetcherindex=?", (day, fetcherindex))
             elif retries < self.cfg.max_retries_domainlist:
-                logging.warning("Fetcher %d %s failed in run %d", fetcherindex, fetcher, retries)
+                logger.warning("Fetcher %d %s failed in run %d", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET retries=retries+1, nexttry=? WHERE day=? AND fetcherindex=?",
-                             (self.wake_up_in(self.cfg.wait_domainlist()), day, fetcherindex))
+                             (self.wake_up_in(self.wait_domainlist()), day, fetcherindex))
             else:
-                logging.warning("Fetcher %d %s timedout after %d retries", fetcherindex, fetcher, retries)
+                logger.warning("Fetcher %d %s timedout after %d retries", fetcherindex, fetcher, retries)
                 curu.execute("UPDATE fetchjobs SET status='timedout' WHERE day=? AND fetcherindex=?",
                              (day, fetcherindex))
         self.con.commit()
@@ -506,19 +523,19 @@ class TLSRPTReporter:
         :type fetcherindex: The fetchers index in the configuration
         :return: True if the job completed successfully, False if a retry is necessary
         """
-        logging.debug("Collect domains from %d %s", fetcherindex, fetcher)
+        logger.debug("Collect domains from %d %s", fetcherindex, fetcher)
         args = fetcher.split()
         args.append(day.__str__())
         fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
         versionheader = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
-        logging.debug(f"From fetcher {fetcherindex} got version header: {versionheader}")
+        logger.debug(f"From fetcher {fetcherindex} got version header: {versionheader}")
         if versionheader != TLSRPT_FETCHER_VERSION_STRING_V1:
-            logging.error(f"Unsupported protocol version from fetcher {fetcherindex} '{fetcher}': {versionheader}")
+            logger.error(f"Unsupported protocol version from fetcher {fetcherindex} '{fetcher}': {versionheader}")
             return False
         # get socket timeout and therefore the commit lag of this receiver
         receiver_timeout = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         if int(receiver_timeout) > self.cfg.max_receiver_timeout:
-            logging.warning(f"Receiver timeout {receiver_timeout} greater than maximum of "
+            logger.warning(f"Receiver timeout {receiver_timeout} greater than maximum of "
                             f"{self.cfg.max_receiver_timeout} on fetcher {fetcherindex} {fetcher}")
         # get current time of this receiver
         receiver_time_string = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
@@ -527,8 +544,8 @@ class TLSRPTReporter:
         reporter_time = tlsrpt_utc_time_now()
         dt = reporter_time - receiver_time
         if abs(dt.total_seconds()) > self.cfg.max_receiver_timediff:
-            logging.warning(f"Receiver time {receiver_time} and reporter time {reporter_time} differ more then "
-                            f"{self.cfg.max_receiver_timediff} on fetcher {fetcherindex} {fetcher}")
+            logger.warning(f"Receiver time {receiver_time} and reporter time {reporter_time} differ more then "
+                           f"{self.cfg.max_receiver_timediff} on fetcher {fetcherindex} {fetcher}")
 
         self.cur.execute("SAVEPOINT domainlist")
         # read the domain list
@@ -536,13 +553,13 @@ class TLSRPTReporter:
         try:
             while result:
                 dom = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
-                logging.debug("Got line '%s'", dom)
+                logger.debug("Got line '%s'", dom)
                 if dom == ".":  # end of domain list reached
                     break
                 if not dom:  # EOF
                     # this is a warning instead of an error because a remote connection could have been interrupted
                     # and a retry might succeed
-                    logging.warning("Unexpected end of domain list")
+                    logger.warning("Unexpected end of domain list")
                     result = False
                     break
                 try:
@@ -551,17 +568,17 @@ class TLSRPTReporter:
                                      "VALUES (?,?,NULL,?,?,0,NULL,?)",
                                      (day, dom, fetcherindex, fetcher, tlsrpt_utc_time_now()))
                 except sqlite3.IntegrityError as e:
-                    logging.warning(e)
+                    logger.warning(e)
         except Exception as e:
-            logging.error("Unexpected exception: %s", e.__str__())
+            logger.error("Unexpected exception: %s", e.__str__())
             result = False
 
         if result:
-            logging.info(f"DB-commit for fetcher {fetcherindex} {fetcher}")
+            logger.info(f"DB-commit for fetcher {fetcherindex} {fetcher}")
             self.cur.execute("RELEASE SAVEPOINT domainlist")
             self.con.commit()
         else:
-            logging.info(f"DB-rollback for fetcher {fetcherindex} {fetcher}")
+            logger.info(f"DB-rollback for fetcher {fetcherindex} {fetcher}")
             self.cur.execute("ROLLBACK TO SAVEPOINT domainlist")
             self.con.commit()
         return result
@@ -581,11 +598,11 @@ class TLSRPTReporter:
         """
         Fetch details for the domains not yet processed
         """
-        logging.debug("Fetch data")
+        logger.debug("Fetch data")
         curtofetch = self.con.cursor()
         incompletedays = self.select_incomplete_days(curtofetch)
         if len(incompletedays) != 0:
-            logging.debug("The are %d incomplete days: %s", len(incompletedays), incompletedays.__str__())
+            logger.debug("The are %d incomplete days: %s", len(incompletedays), incompletedays.__str__())
 
         # select jobs that are due
         now = tlsrpt_utc_time_now()
@@ -593,8 +610,8 @@ class TLSRPTReporter:
             "SELECT day, fetcher, fetcherindex, domain FROM reportdata "
             "WHERE data IS NULL AND nexttry<? AND day NOT IN (SELECT day FROM fetchjobs WHERE status IS NULL)",
             (now,))
-        for row in curtofetch:
-            self.fetch_data_from_fetcher_for_domain(row[0], row[1], row[2], row[3])
+        for (day, fetcher, fetcherindex, domain) in curtofetch:
+            self.fetch_data_from_fetcher_for_domain(day, fetcher, fetcherindex, domain)
 
     def fetch_data_from_fetcher_for_domain(self, day, fetcher, fetcherindex, dom):
         """
@@ -604,24 +621,24 @@ class TLSRPTReporter:
         :type fetcherindex: The fetchers index in the configuration
         :param dom: The domain for which to fetch the details
         """
-        logging.debug("Fetch data from %d %s for domain %s", fetcherindex, fetcher, dom)
+        logger.debug("Fetch data from %d %s for domain %s", fetcherindex, fetcher, dom)
         args = fetcher.split()
         args.append(day.__str__())
         args.append(dom)
         try:
             fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
         except FileNotFoundError as e:
-            logging.error("File not found when trying to run fetcher %s: %s", fetcher, e.__str__())
+            logger.error("File not found when trying to run fetcher %s: %s", fetcher, e.__str__())
             return
         alldata = fetcherpipe.stdout.read(TLSRPT_MAX_READ_FETCHER)
         try:
             j = json.loads(alldata)
         except json.JSONDecodeError as e:
-            logging.error("Invalid JSON: %s", e.__str__())
+            logger.error("Invalid JSON: %s", e.__str__())
             return
         gotdom = j.pop("d")
         if gotdom != dom:
-            logging.error("Domain mismatch! Asked for %s but got reply for %s", dom, gotdom)
+            logger.error("Domain mismatch! Asked for %s but got reply for %s", dom, gotdom)
             return
         data = j.pop("policies")
         self.curtoupdate.execute("UPDATE reportdata SET data=?, status='fetched' "
@@ -712,7 +729,7 @@ class TLSRPTReporter:
                     if failure[rtcode] in fcmap:
                         fdet["result-type"] = fcmap[failure[rtcode]]
                     else:
-                        logging.error("Undefined result type code %d", rtcode)
+                        logger.error("Undefined result type code %d", rtcode)
                 fdet["failed-session-count"] = failures[sfailure]
                 npol["failure-details"].append(fdet)
             policies.append(npol)
@@ -722,7 +739,7 @@ class TLSRPTReporter:
         r_id = cur.lastrowid
         for rua in parse_tlsrpt_record(tlsrptrecord):
             cur.execute("INSERT INTO destinations (destination, d_r_id, retries, status, nexttry) VALUES(?,?,0,NULL,?)",
-                        (rua, r_id, self.cfg.schedule_report_delivery()))
+                        (rua, r_id, self.schedule_report_delivery()))
 
     def create_report_for(self, day, dom):
         """
@@ -731,7 +748,7 @@ class TLSRPTReporter:
         :param day: Day for which to create the reports
         :param dom: Domain for which to create the reports
         """
-        logging.debug("Will create report for day %s domain %s", day, dom)
+        logger.debug("Will create report for day %s domain %s", day, dom)
         cur = self.con.cursor()
         cur.execute("SELECT data FROM reportdata WHERE day=? AND domain=?", (day, dom))
         reports = {}
@@ -742,12 +759,14 @@ class TLSRPTReporter:
                     reports[tlsrptrecord] = {}
                 self.aggregate_report_from_data(reports[tlsrptrecord], j[tlsrptrecord])
 
+        report_index = 0
         for tlsrptrecord in reports:
+            report_index += 1
             rawreport = reports[tlsrptrecord]
-            report_domain = "dest.example.com"  # TODO
+            report_domain = dom
             report_start_datetime = tlsrpt_report_start_datetime(day)
             report_end_datetime = tlsrpt_report_end_datetime(day)
-            report_id = report_start_datetime + "_" + report_domain
+            report_id = report_start_datetime + "_idx" + str(report_index) + "_" + report_domain
             report = {"organization-name": self.cfg.organization_name,
                       "date-range": {
                           "start-datetime": report_start_datetime,
@@ -762,38 +781,35 @@ class TLSRPTReporter:
         """
         Create all reports possible, i.e. where no data is pending.
         """
-        logging.debug("Create reports")
+        logger.debug("Create reports")
         curtofetch = self.con.cursor()
         self.curtoupdate = self.con.cursor()
         # Some diagnostic information
         curtofetch.execute("SELECT fetcherindex, domain FROM reportdata WHERE data IS NULL")
-        for row in curtofetch:
-            logging.warning("Incomplete data for domain %s by fetcher index %d", row[1], row[0])
+        for (fetcherindex, domain) in curtofetch:
+            logger.warning("Incomplete data for domain %s by fetcher index %d", domain, fetcherindex)
         # fetch all data keys with complete data and no report yet
-        curtofetch.execute("SELECT day, domain FROM reportdata WHERE status='fetched' "
+        curtofetch.execute("SELECT DISTINCT day, domain FROM reportdata WHERE status='fetched' "
                            "AND NOT (day, domain) IN "
                            "(SELECT day, domain FROM reportdata WHERE status IS NULL) "
                            "AND NOT (day, domain) IN "
                            "(SELECT day, domain FROM reports)")
-        for row in curtofetch:  # TODO for (day, dom) in...
-            self.create_report_for(row[0], row[1])
+        for (day, dom) in curtofetch:
+            self.create_report_for(day, dom)
 
     def send_out_reports(self):
         """
         Send out the finished reports.
         """
-        logging.debug("Send out reports")
-        cur = self.con.cursor()
-        curu = self.con.cursor()
+        logger.debug("Send out reports")
+        cur = self.con.cursor()  # cursor for selects
+        curu = self.con.cursor()  # cursor for updates
         cur.execute(
-            "SELECT destination, d_r_id, report FROM destinations "
+            "SELECT destination, d_r_id, report, domain FROM destinations "
             "LEFT JOIN reports on r_id=d_r_id WHERE destinations.status IS NULL")
-        for row in cur:
-            destination = row[0]
-            d_r_id = row[1]
-            report = row[2]
-            filename = "/tmp/testreport-" + str(d_r_id) + "-" + destination.replace("/", "_") + ".json"
-            logging.debug("Would send out report %s to %s, saving to %s", str(d_r_id), destination, filename)
+        for (destination, d_r_id, report, dom) in cur:
+            filename = "/tmp/testreport-" + dom + "-" + str(d_r_id) + "-" + destination.replace("/", "_") + ".json"
+            logger.debug("Would send out report %s to %s, saving to %s", str(d_r_id), destination, filename)
             with open(filename, "w") as file:
                 file.write(report)
             curu.execute("UPDATE destinations SET status='sent' WHERE destination=? AND d_r_id=?",
@@ -817,13 +833,13 @@ class TLSRPTReporter:
         :return: The new wake up time
         """
         if self.wakeuptime > t:
-            logging.debug(f"Changing wake up time from {self.wakeuptime} to {t}")
+            logger.debug(f"Changing wake up time from {self.wakeuptime} to {t}")
             self.wakeuptime = t
         elif force:
-            logging.debug(f"Enforcing wake up time from {self.wakeuptime} to {t}")
+            logger.debug(f"Enforcing wake up time from {self.wakeuptime} to {t}")
             self.wakeuptime = t
         else:
-            logging.debug(f"Not changing wake up time from {self.wakeuptime} to {t}")
+            logger.debug(f"Not changing wake up time from {self.wakeuptime} to {t}")
         return self.wakeuptime
 
     def run_loop(self):
@@ -840,10 +856,10 @@ class TLSRPTReporter:
             dt = self.wakeuptime - tlsrpt_utc_time_now()
             seconds_to_sleep = dt.total_seconds()
             if seconds_to_sleep >= 0:
-                logging.info("Sleeping for %d seconds", seconds_to_sleep)
+                logger.info("Sleeping for %d seconds", seconds_to_sleep)
                 time.sleep(seconds_to_sleep)
             else:
-                logging.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
+                logger.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
 
 
 def tlsrpt_receiver_main():
@@ -852,33 +868,40 @@ def tlsrpt_receiver_main():
     receive TLSRPT datagrams from the MTA (e.g. Postfix). and writes the
     datagrams to the database.
     """
-    config = ConfigReceiver()
+    (configvars, params) = options_from_cmd_cfg_env(options_receiver,  TLSRPTReceiver.DEFAULT_CONFIG_FILE,
+                                                    TLSRPTReceiver.CONFIG_SECTION, TLSRPTReceiver.ENVIRONMENT_PREFIX,
+                                                    {})
+    config = ConfigReceiver(**configvars)
 
     server_address = config.receiver_socketname
 
-    logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s %(lineno)s : %(message)s",
-                        filename=config.receiver_logfilename, filemode="a", level=logging.DEBUG)
-    logging.getLogger().addHandler(logging.StreamHandler())
+    setup_logging(config.receiver_logfilename, config.log_level)
 
-    logging.info("TLSRPT receiver starting")
+    logger.info("TLSRPT receiver starting")
     # Make sure the socket does not already exist
     try:
         if os.path.exists(server_address):
             os.unlink(server_address)
     except OSError as err:
-        logging.error("Failed to remove already existing socket %s: %s", server_address, err)
+        logger.error("Failed to remove already existing socket %s: %s", server_address, err)
         raise
 
     # Create a Unix Domain Socket
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
     # Bind the socket to the port
-    logging.info("Listening on socket %s" % server_address)
+    if server_address is None or server_address == "":
+        raise Exception("No receiver_socketname configured")
+    logger.info("Listening on socket '%s'" % server_address)
     sock.bind(server_address)
     sock.settimeout(config.receiver_sockettimeout)
 
-    # Multiple receivers to be set-up from configuration, for now hard-coded
-    receivers = [TLSRPTReceiverSQLite(config)]
+    # Multiple receivers to be set-up from configuration
+    receivers = []
+    for r in config.storage.split(","):
+        receivers.append(TLSRPTReceiver.factory(r, config))
+    if len(receivers) == 0:
+        raise Exception("No receiver storage configured")
 
     while True:
         alldata = None  # clear old data to prevent accidentally processing it twice
@@ -891,22 +914,22 @@ def tlsrpt_receiver_main():
                 try:
                     receiver.add_datagram(j)
                 except KeyError as err:
-                    logging.error(f"KeyError {err} during processing datagram: {json.dumps(j)}")
+                    logger.error(f"KeyError {err} during processing datagram: {json.dumps(j)}")
                     raise err
         except socket.timeout:
             for receiver in receivers:
                 receiver.socket_timeout()
         except OSError as err:
-            logging.error(f"OS-Error: {err}")
+            logger.error(f"OS-Error: {err}")
             raise
         except UnicodeDecodeError as err:
-            logging.error(f"Malformed utf8 data received: {err}")
+            logger.error(f"Malformed utf8 data received: {err}")
             Path(config.dump_path_for_invalid_datagram).write_bytes(alldata)
         except json.decoder.JSONDecodeError as err:
-            logging.error(f"JSON decode error: {err}")
+            logger.error(f"JSON decode error: {err}")
             Path(config.dump_path_for_invalid_datagram).write_text(alldata.decode("utf-8"), encoding="utf-8")
         except sqlite3.OperationalError as err:
-            logging.error(f"Database error: {err}")
+            logger.error(f"Database error: {err}")
 
 
 def tlsrpt_fetcher_main():
@@ -915,20 +938,26 @@ def tlsrpt_fetcher_main():
     read the database entries that were written by the receiver.
     """
     # TLSRPT-fetcher is tightly coupled to TLSRPT-receiver and uses its config and database
-    config = ConfigReceiver()
+    (configvars, params) = options_from_cmd_cfg_env(options_receiver, TLSRPTReceiver.DEFAULT_CONFIG_FILE,
+                                                    TLSRPTReceiver.CONFIG_SECTION, TLSRPTReceiver.ENVIRONMENT_PREFIX,
+                                                    pospars_fetcher)
+    config = ConfigReceiver(**configvars)
 
-    logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s %(lineno)s : %(message)s",
-                        filename=config.fetcher_logfilename, filemode="a", level=logging.DEBUG)
-    logging.getLogger().addHandler(logging.StreamHandler())
+    setup_logging(config.fetcher_logfilename, config.log_level)
 
-    fetcher = TLSRPTFetcherSQLite(config)
-    if len(sys.argv) < 2:
+    # Fetcher uses the first configured storage
+    url = config.storage.split(",")[0]
+    if not url.startswith("sqlite:"):
+        raise Exception(f"Can not fetch data from storage '{url}'")
+    fetcher = TLSRPTFetcherSQLite(url, config)
+
+    if params["day"] is None or params["day"] == "":
         print("Usage: %s day [domain]", file=sys.stderr)
         sys.exit(EXIT_USAGE)
-    if len(sys.argv) < 3:
-        fetcher.fetch_domain_list(sys.argv[1])
+    if params["domain"] is None:
+        fetcher.fetch_domain_list(params["day"])
     else:
-        fetcher.fetch_domain_details(sys.argv[1], sys.argv[2])
+        fetcher.fetch_domain_details(params["day"], params["domain"])
 
 
 def tlsrpt_reporter_main():
@@ -937,11 +966,12 @@ def tlsrpt_reporter_main():
     sends the STMP TLS reports out the endpoints that the other MTA operators
     have published.
     """
-    config = ConfigReporter()
-    logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s %(lineno)s : %(message)s",
-                        filename=config.reporter_logfilename, filemode="a", level=logging.DEBUG)
-    logging.getLogger().addHandler(logging.StreamHandler())
-    logging.info("TLSRPT reporter starting")
+    (configvars, params) = options_from_cmd_cfg_env(options_reporter, "/etc/tlsrpt/reporter.cfg", "tlsrpt_reporter", "TLSRPT_",{})
+    config = ConfigReporter(**configvars)
+    print(config)
+    setup_logging(config.reporter_logfilename, config.log_level)
+
+    logger.info("TLSRPT reporter starting")
 
     reporter = TLSRPTReporter(config)
     reporter.run_loop()

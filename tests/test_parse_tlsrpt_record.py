@@ -18,7 +18,7 @@
 #
 
 import unittest
-from sys4_tlsrpt import utility   # unit under test
+from pytlsrpt import utility   # unit under test
 
 
 class MyTestCase(unittest.TestCase):

@@ -5,8 +5,8 @@
 :title-page:
 
 = TLSRPT for MTAs - API documentation of the C library
-Version 0.04
-2024-09-05
+Version 0.5.0-pre20240929
+2024-09-29
 
 == Error handling
 
@@ -203,6 +203,13 @@ The default is non-blocking.
 
 ==== `tlsrpt_set_nonblocking`
 The `tlsrpt_set_nonblocking` function restores the `sendto` call within `tlsrpt_finish_delivery_request` to its default non-blocking behaviour.
+
+==== `tlsrpt_get_socket`
+Parameters:::
+ truct tlsrpt_connection_t* con:: A pointer to the `tlsrpt_connection_t` struct.
+
+The `tlsrpt_get_socket` function returns the socket file descriptor used within a `tlsrpt_connection_t`.
+This can be useful to set socket options.
 
 
 === Error code inspection

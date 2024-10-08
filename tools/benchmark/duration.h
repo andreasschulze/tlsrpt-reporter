@@ -68,6 +68,7 @@ public:
   Rate(const struct timespec& start, const struct timespec& end, long n) : ts_start(start), ts_end(end), count(n) {}
 
   void start() {
+    count=0;
     clock_gettime(clk,&ts_start);
   }
 
@@ -91,6 +92,14 @@ public:
 
 Rate operator + (const Rate& a, const Rate& b) {
   return Rate(min(a.ts_start,b.ts_start), max(a.ts_end,b.ts_end), a.count+b.count);
+}
+
+Rate operator * (const Rate& a, double f) {
+  return Rate(a.ts_start, a.ts_end, long(a.count*f));
+}
+
+Rate operator * (double f, const Rate& a) {
+  return a*f;
 }
 
 ostream& operator <<(ostream& o, const Rate& r) {

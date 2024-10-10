@@ -53,12 +53,14 @@ int NEWSOCK =0; // Flag to indicate whether we use a new socket each time, will 
 Rate *bgrates; // "real" rate of the background threads
 int *bgargs; // arguments for the threads: each threads gets its own id as array index
 int *bgerrors; // error counts for the threads
+int *bgchange; // flag to indicate rate change and demand a reset within the worker
 pthread_t *threads; // the thread structures
 
 void initialize(int bgthreads) {
   bgrates= new Rate[bgthreads]();
   bgargs= new int[bgthreads]();
   bgerrors= new int[bgthreads]();
+  bgchange= new int[bgthreads]();
   threads= new pthread_t[bgthreads]();
 }
 
@@ -180,6 +182,7 @@ void* bgworker(void* arg) {
 
   time_t lap = time(NULL);
   int i=0;
+  Rate g=bgrate; // goal rate, cache it in local variabkle to avoid race conditions when changing bgrate
 
   // use two rates, switch every second, have one second warm up pahse and the one second in use
   Rate c;
@@ -188,8 +191,14 @@ void* bgworker(void* arg) {
   n.start();
   while(true) {
     time_t nlap = time(NULL);
+    if(bgchange[id]) {
+      bgchange[id]=0;
+      //lap=nlap-1; // enforce 
+      n.start();
+      c.start();
+      g=bgrate;
+    }
     if(nlap!=lap) { // swap rates so that we are using the warmed up rate
-      bgrates[id]=c;
       Rate tmp=c;
       c=n;
       n=tmp;
@@ -201,10 +210,12 @@ void* bgworker(void* arg) {
     res=testdatagram(con, i);
     if(res!=0) {
       ++bgerrors[id];
+    } else {
+      bgrates[id].add();
     }
     //cerr<<"BG "<<id<<bgrate<<" vs "<<c<<endl;
     c.stop();
-    ratesleep(bgrate,c);
+    ratesleep(g,c);
     ++i;
   }
   cerr<<"WORKER TERMINATED?!?"<<endl;
@@ -330,6 +341,8 @@ int main(int argc, char *argv[])
   while(true) {
     cout<<"Switching bg rate to "<<bi*0.1<<endl;
     bgrate=baserate*(bi*0.1/bgthreads);
+    for(int k=0; k<bgthreads; ++k) bgchange[k]=1;
+
     cout<<"Sleep for "<<burstwait<<" seconds"<<endl;
     res = sleep(burstwait);
     if(res!=0) {
@@ -337,6 +350,7 @@ int main(int argc, char *argv[])
     }
     Rate burstrate;
     burstrate.start();
+    for(int k=0; k<bgthreads; ++k) bgrates[k].start();
     i=0;
     static const clockid_t clk=CLOCK_MONOTONIC;
     struct timespec ts_start;
@@ -350,6 +364,7 @@ int main(int argc, char *argv[])
       double dur=duration(&ts_start, &ts_end);
       if(res!=0 || i>= maxburst || dur>maxburstsec) {
 	burstrate.stop();
+        for(int k=0; k<bgthreads; ++k) bgrates[k].stop();
 	cout<<endl<<"Burst "<<burstrate<<" "<<endl;
 	if(res!=0) {
 	  cerr<<"In run "<<i<<" ";

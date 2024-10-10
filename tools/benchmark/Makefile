@@ -15,16 +15,33 @@
 #    License along with this program.
 #    If not, see <http://www.gnu.org/licenses/>.
 
+UNAME := $(shell uname)
+
+ifeq ($(UNAME), FreeBSD)
+PTHREADCC = -pthread
+PTHREADLD = -pthread
+else
+PTHREADCC =
+PTHREADLD = -lpthread
+endif
+
+
 CC=gcc
 DEBUG=-g
-CFLAGS += -Wall -I ../library/include ${DEBUG} -O2
+CFLAGS += -Wall -I ../../libtlsrpt ${DEBUG} -O2 ${PTHREADCC}
 CXXFLAGS += ${CFLAGS} -fpermissive
-LDFLAGS += -Wall -L. -L ../library/src ${DEBUG}
-LDLIBS += ../library/src/libtlsrpt.a
+LDFLAGS += -Wall ${DEBUG} ${PTHREADLD} -lboost_program_options
 
-PROGS = bench1
+LDLIBS += ../../libtlsrpt/.libs/libtlsrpt.a
+
+ifeq ($(UNAME), FreeBSD)
+LDLIBS += /lib/libthr.so.3
+endif
+
+PROGS = bench bench1
 all: ${PROGS}
 
+bench:  $(LDLIBS)
 bench1: $(LDLIBS)
 
 clean:

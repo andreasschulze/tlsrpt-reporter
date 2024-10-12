@@ -47,11 +47,6 @@ EXIT_DB_SETUP_FAILURE = 1
 EXIT_WRONG_DB_VERSION = 2
 EXIT_USAGE = 3
 
-# Development mode
-DEVELMODE = True
-DEVELMODE_DBQUERIES = True
-
-
 ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                         ['storage',
                                          'receiver_socketname',
@@ -273,9 +268,9 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         policy_failed = policy.pop("f")  # boolean defining success or failure as final result
         failures = policy.pop("failure-details", [])  # the failures encountered
         failure_count = policy.pop("t", None)  # number of failures
-        if DEVELMODE and failure_count != len(failures):
+        if failure_count != len(failures):
             logger.error("Failure count mismatch in received datagram: %d reported versus %d failured details: %s",
-                          failure_count, len(failures), json.dumps(failures))
+                         failure_count, len(failures), json.dumps(failures))
         p = json.dumps(policy)
         self.cur.execute(
             "INSERT INTO finalresults (day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure) VALUES(?,?,?,?,1,?) "
@@ -400,7 +395,7 @@ class TLSRPTReporter:
         else:
             logger.info("Create new database %s", self.dbname)
             self._setup_database()
-        if DEVELMODE_DBQUERIES:
+        if self.cfg.debug_db:
             self.con.set_trace_callback(print)
 
     def _setup_database(self) -> None:
@@ -474,7 +469,7 @@ class TLSRPTReporter:
         logger.debug("Check day")
         cur = self.con.cursor()
         yesterday = tlsrpt_utc_date_yesterday()
-        if DEVELMODE:  # use today´s data during development
+        if self.cfg.develmode:  # use today´s data during development
             yesterday = tlsrpt_utc_date_now()
         now = tlsrpt_utc_time_now()
         cur.execute("SELECT * FROM fetchjobs WHERE day=?", (yesterday,))

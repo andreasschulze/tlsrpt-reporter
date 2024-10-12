@@ -18,10 +18,12 @@
 #
 
 import collections
+import email.message
+import gzip
 import json
 import logging
-import os
 import random
+import smtplib
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 import socket
@@ -29,7 +31,9 @@ import subprocess
 import sys
 import sqlite3
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +74,7 @@ options_receiver = {
     "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": ""},
 }
 
+
 """
 Positional parameters for fetcher
 """
@@ -82,14 +87,25 @@ pospars_fetcher = {
 ConfigReporter = collections.namedtuple("ConfigReporter",
                                         ['reporter_logfilename',
                                          'log_level',
+                                         'debug_db',
+                                         'debug_send_mail_dest',
+                                         'debug_send_http_dest',
+                                         'debug_send_file_dest',
+                                         'develmode',
                                          'reporter_dbname',
                                          'reporter_fetchers',
                                          'organization_name',
                                          'contact_info',
+                                         'compression_level',
+                                         'http_timeout',
+                                         'smtp_server',
                                          'spread_out_delivery',
                                          'interval_main_loop',
                                          'max_receiver_timeout',
                                          'max_receiver_timediff',
+                                         'max_retries_delivery',
+                                         'min_wait_delivery',
+                                         'max_wait_delivery',
                                          'max_retries_domainlist',
                                          'min_wait_domainlist',
                                          'max_wait_domainlist',
@@ -100,14 +116,25 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
 options_reporter = {
     "reporter_logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": ""},
     "log_level": {"type": str, "default": "warn", "help": "Log level"},
+    "debug_db": {"type": int, "default": 0, "help": "Enable database debugging"},
+    "debug_send_mail_dest": {"type": str, "default": "", "help": "Send all mail reports to this addres instead"},
+    "debug_send_http_dest": {"type": str, "default": "", "help": "Post all mail reports to this server instead"},
+    "debug_send_file_dest": {"type": str, "default": "", "help": "Save all mail reports to this directory additionally"},
+    "develmode": {"type": int, "default": 0, "help": "Enable development mode. DO NOT USE ON PRODUCTIVE SYSTEM!"},
     "reporter_dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": ""},
     "reporter_fetchers": {"type": str, "default": "/usr/libexec/tlsrpt/fetcher.py", "help": ""},
     "organization_name": {"type": str, "default": "", "help": ""},
     "contact_info": {"type": str, "default": "", "help": ""},
+    "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},
+    "http_timeout": {"type": int, "default": 10, "help": "Timeout for HTTPS uploads"},
+    "smtp_server": {"type": str, "default": "", "help": "SMTP server to use for sending email reports"},
     "spread_out_delivery": {"type": int, "default": 36000, "help": "Time range in seconds to spread out report delivery"},
     "interval_main_loop": {"type": int, "default": 300, "help": "Maximum sleep interval in main loop"},
     "max_receiver_timeout": {"type": int, "default": 10, "help": "Maximum expected receiver timeout"},
     "max_receiver_timediff": {"type": int, "default": 10, "help": "Maximum expected receiver time difference"},
+    "max_retries_delivery": {"type": int, "default": 5, "help": "Maximum attempts to deliver a report"},
+    "min_wait_delivery": {"type": int, "default": 300, "help": "Minimum time in seconds between to delivery attempts"},
+    "max_wait_delivery": {"type": int, "default": 1800, "help": "Maximum time in seconds between to delivery attempts"},
     "max_retries_domainlist": {"type": int, "default": 5, "help": ""},
     "min_wait_domainlist": {"type": int, "default": 30, "help": ""},
     "max_wait_domainlist": {"type": int, "default": 300, "help": ""},
@@ -117,9 +144,6 @@ options_reporter = {
 }
 
 
-
-
-
 def setup_logging(filename, level):
     logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s %(lineno)s : %(message)s", level=logging.NOTSET)
     logger.addHandler(logging.FileHandler(filename))
@@ -127,6 +151,22 @@ def setup_logging(filename, level):
     if not isinstance(numeric_level, int):
         raise ValueError("Invalid log level: %s" % level)
     logger.setLevel(numeric_level)
+
+
+class EmailReport(email.message.EmailMessage):
+    """
+    Extension of EmailMessage with get_header method
+    """
+    def get_header(self, header):
+        """
+        Lookup an existing header
+        :param header: email header to retrieve
+        :return: the content of the email header
+        """
+        for k, v in self._headers:
+            if k == header:
+                return v
+        raise IndexError("Header not found: " + header)
 
 
 class TLSRPTReceiver(metaclass=ABCMeta):
@@ -343,8 +383,10 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
         # send domains
         dlcursor = self.con.cursor()
         dlcursor.execute("SELECT DISTINCT domain FROM finalresults WHERE day=?", (day,))
+        alldata = dlcursor.fetchall()
+        dlcursor.close()
         linenumber = 0
-        for row in dlcursor:
+        for row in alldata:
             try:
                 linenumber += 1
                 print(row[0])
@@ -462,14 +504,29 @@ class TLSRPTReporter:
         fetchers = self.cfg.reporter_fetchers.split(",")
         return fetchers
 
-    def wait_domainlist(self):
+    def _wait(self, smin, smax):
         """
-        Calculates a random wait period
+        Calculates a random wait period between smin and smax seconds
 
         :return: seconds to wait before next retry
         """
-        waits = random.randint(self.cfg.min_wait_domainlist, self.cfg.max_wait_domainlist)  # 5 to 6 minutes
-        return waits
+        return random.randint(smin, smax)
+
+    def wait_domainlist(self):
+        """
+        Calculates a random wait period between smin and smax seconds
+
+        :return: seconds to wait before next retry
+        """
+        return self._wait(self.cfg.min_wait_domainlist, self.cfg.max_wait_domainlist)
+
+    def wait_retry_report_delivery(self):
+        """
+        Calculates a random wait period between smin and smax seconds
+
+        :return: seconds to wait before next retry
+        """
+        return self._wait(self.cfg.min_wait_delivery, self.cfg.max_wait_delivery)
 
     def schedule_report_delivery(self):
         secs = random.randint(0, self.cfg.spread_out_delivery)
@@ -532,6 +589,7 @@ class TLSRPTReporter:
         :return: True if the job completed successfully, False if a retry is necessary
         """
         logger.debug("Collect domains from %d %s", fetcherindex, fetcher)
+        duration = Duration()
         args = fetcher.split()
         args.append(day.__str__())
         fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
@@ -544,7 +602,7 @@ class TLSRPTReporter:
         receiver_timeout = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         if int(receiver_timeout) > self.cfg.max_receiver_timeout:
             logger.warning(f"Receiver timeout {receiver_timeout} greater than maximum of "
-                            f"{self.cfg.max_receiver_timeout} on fetcher {fetcherindex} {fetcher}")
+                           f"{self.cfg.max_receiver_timeout} on fetcher {fetcherindex} {fetcher}")
         # get current time of this receiver
         receiver_time_string = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         receiver_time = datetime.datetime.strptime(receiver_time_string, TLSRPT_TIMEFORMAT). \
@@ -558,6 +616,7 @@ class TLSRPTReporter:
         self.cur.execute("SAVEPOINT domainlist")
         # read the domain list
         result = True
+        dc = 0  # domain count
         try:
             while result:
                 dom = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
@@ -575,6 +634,7 @@ class TLSRPTReporter:
                                      "(day, domain, data, fetcherindex, fetcher, retries, status, nexttry) "
                                      "VALUES (?,?,NULL,?,?,0,NULL,?)",
                                      (day, dom, fetcherindex, fetcher, tlsrpt_utc_time_now()))
+                    dc += 1
                 except sqlite3.IntegrityError as e:
                     logger.warning(e)
         except Exception as e:
@@ -589,6 +649,8 @@ class TLSRPTReporter:
             logger.info(f"DB-rollback for fetcher {fetcherindex} {fetcher}")
             self.cur.execute("ROLLBACK TO SAVEPOINT domainlist")
             self.con.commit()
+        duration.add(dc)
+        logger.info(f"Fetching {dc} domains took {duration.time()}, {duration.rate()} domains per second")
         return result
 
     def select_incomplete_days(self, cursor):
@@ -743,7 +805,12 @@ class TLSRPTReporter:
             policies.append(npol)
         report["policies"] = policies
         cur = self.con.cursor()
-        cur.execute("INSERT INTO reports (day, domain, report) VALUES(?,?,?)", (day, dom, json.dumps(report)))
+        cur.execute("SELECT COUNT(*)+1 FROM reports WHERE day=? AND domain=?", (day, dom))
+        uniqid = 0
+        for (uniqid,) in cur:
+            break
+        cur.execute("INSERT INTO reports (day, domain, uniqid, report) VALUES(?,?,?,?)",
+                    (day, dom, uniqid, json.dumps(report)))
         r_id = cur.lastrowid
         for rua in parse_tlsrpt_record(tlsrptrecord):
             cur.execute("INSERT INTO destinations (destination, d_r_id, retries, status, nexttry) VALUES(?,?,0,NULL,?)",
@@ -805,6 +872,87 @@ class TLSRPTReporter:
         for (day, dom) in curtofetch:
             self.create_report_for(day, dom)
 
+    def send_out_report_to_file(self, dom, d_r_id, destination, report, debugdir):
+        filename = debugdir + "/testreport-" + dom + "-" + str(d_r_id) + "-" + destination.replace("/", "_") + ".json"
+        logger.debug("Would send out report %s to %s, saving to %s", str(d_r_id), destination, filename)
+        with open(filename, "w") as file:
+            file.write(report)
+
+    def send_out_report_to_mail(self, day, dom, d_r_id, uniqid, destination, zreport):
+        # Check for debug override of destination
+        dest = self.cfg.debug_send_mail_dest
+        if dest is None or dest == "":
+            dest = destination
+
+        # Call send script
+        msg = EmailReport()
+        msg['Subject'] = self.create_email_subject(dom, d_r_id)
+        msg['From'] = self.cfg.contact_info
+        msg['To'] = dest
+        msg.add_header("TLS-Report-Domain", dom)
+        msg.add_header("TLS-Report-Submitter", self.cfg.organization_name)
+
+        nr = uniqid
+        n = self.create_report_filename(dom, day, nr)
+        data = zreport
+        intro = "This is an aggregate TLS report from "+self.cfg.organization_name  # .encode("ascii")
+        msg.set_content(intro, charset="ascii")
+        msg.add_attachment(data, maintype="application", subtype="tlsrpt+gzip", filename=n)
+
+        # Replace MIME multipart header with TLSRPT report header
+        h = msg.get_header("Content-Type")
+        nh = h.replace("multipart/mixed", "multipart/report; report-type=""tlsrpt""")
+        msg.replace_header("Content-Type", nh)
+
+        reportemail = msg.as_string(policy=email.policy.SMTP)
+        debugdir = self.cfg.debug_send_file_dest
+        if debugdir is not None and debugdir != "":
+            self.send_out_report_to_file(dom, d_r_id, "THE_EMAIL_TO_"+destination, reportemail, debugdir)
+        result = False
+        try:
+            with smtplib.SMTP(self.cfg.smtp_server) as s:
+                refused = s.send_message(msg)
+                if len(refused) == 0:
+                    result = True
+                    logger.warning("Sent report email to %s", dest)
+                else:
+                    logger.warning("Delivery error in sending report email to %s: %s", dest, refused.__str__())
+        except Exception as e:
+            logger.error("Exception in sending report email to %s: %s", dest, e)
+        return result
+
+    def send_out_report_to_http(self, dom, d_r_id, destination, zreport):
+        # Check for debug override of destination
+        dest = self.cfg.debug_send_http_dest
+        if dest is None or dest == "":
+            dest = destination
+        # Post the report
+        headers = {"Content-Type": "application/tlsrpt+gzip"}
+        req = urllib.request.Request(dest, zreport, headers)
+        try:
+            with urllib.request.urlopen(req, zreport, self.cfg.http_timeout) as response:
+                result = response.read()
+                logger.debug("Upload to '%s' successful: %s", destination, result)
+                return True
+        except urllib.error.URLError as e:
+            logger.warning("Error in uploading to '%s': %s", destination, e)
+            return False
+
+    def send_out_report(self, day, dom, d_r_id, uniqid, destination, report):
+        # Dump report as a file for debugging
+        debugdir = self.cfg.debug_send_file_dest
+        if debugdir is not None and debugdir != "":
+            self.send_out_report_to_file(dom, d_r_id, destination, report, debugdir)
+        # Zip the report
+        zreport = gzip.compress(report.encode("utf-8"), self.cfg.compression_level)
+        # Send out the actual report
+        if destination.startswith("mailto:"):
+            return self.send_out_report_to_mail(day, dom, d_r_id, uniqid, destination, zreport)
+        elif destination.startswith("https:"):
+            return self.send_out_report_to_http(dom, d_r_id, destination, zreport)
+        else:
+            raise IndexError("Unknown protocol in report destination '%s'", destination)
+
     def send_out_reports(self):
         """
         Send out the finished reports.
@@ -813,16 +961,22 @@ class TLSRPTReporter:
         cur = self.con.cursor()  # cursor for selects
         curu = self.con.cursor()  # cursor for updates
         cur.execute(
-            "SELECT destination, d_r_id, report, domain FROM destinations "
+            "SELECT destination, d_r_id, uniqid, report, domain, day, retries FROM destinations "
             "LEFT JOIN reports on r_id=d_r_id WHERE destinations.status IS NULL")
-        for (destination, d_r_id, report, dom) in cur:
-            filename = "/tmp/testreport-" + dom + "-" + str(d_r_id) + "-" + destination.replace("/", "_") + ".json"
-            logger.debug("Would send out report %s to %s, saving to %s", str(d_r_id), destination, filename)
-            with open(filename, "w") as file:
-                file.write(report)
-            curu.execute("UPDATE destinations SET status='sent' WHERE destination=? AND d_r_id=?",
-                         (destination, d_r_id))
-        self.con.commit()
+        for (destination, d_r_id, uniqid, report, dom, day, retries) in cur:
+            logger.info("Report delivery %d for domain %s succeeded in run %d", d_r_id, dom, retries)
+            if self.send_out_report(day, dom, d_r_id, uniqid, destination, report):
+                curu.execute("UPDATE destinations SET status='sent' WHERE destination=? AND d_r_id=?",
+                             (destination, d_r_id))
+            elif retries < self.cfg.max_retries_delivery:
+                logger.warning("Report delivery %d for domain %s failed in run %d", d_r_id, dom, retries)
+                curu.execute("UPDATE destinations SET retries=retries+1, nexttry=? WHERE destination=? AND d_r_id=?",
+                             (self.wake_up_in(self.wait_retry_report_delivery()), destination, d_r_id))
+            else:
+                logger.warning("Report delivery %d for domain %s timedout after %d  retries", d_r_id, dom, retries)
+                curu.execute("UPDATE destinations SET status='timedout' WHERE destination=? AND d_r_id=?",
+                             (destination, d_r_id))
+            self.con.commit()
 
     def wake_up_in(self, secs, force=False):
         """
@@ -868,6 +1022,14 @@ class TLSRPTReporter:
                 time.sleep(seconds_to_sleep)
             else:
                 logger.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
+
+    def create_email_subject(self, dom, d_r_id):
+        return "Report Domain: " + dom + " Submitter: "+self.cfg.organization_name + " Report-ID: " + str(d_r_id)
+
+    def create_report_filename(self, dom, day, nr):
+        start = tlsrpt_report_start_timestamp(day)
+        end = tlsrpt_report_end_timestamp(day)
+        return self.cfg.organization_name + "!" + dom + "!" + str(start) + "!" + str(end) + "!" + str(nr) + ".json.gz"
 
 
 def tlsrpt_receiver_main():

@@ -47,7 +47,7 @@ def tlsrpt_report_start_datetime(day):
     """
     Return start time of report for a specific day.
     :param day:  Day for which to create the start time.
-    :return: Timestamp of the report start the in the format required by RFC 8460
+    :return: Timestamp of the report start in the format required by RFC 8460
     """
     return day + "T00:00:00Z"
 
@@ -55,9 +55,28 @@ def tlsrpt_report_end_datetime(day):
     """
     Return end time of report for a specific day.
     :param day:  Day for which to create the end time.
-    :return: Timestamp of the report end the in the format required by RFC 8460
+    :return: Timestamp of the report end in the format required by RFC 8460
     """
     return day + "T23:59:59Z"
+
+def tlsrpt_report_start_timestamp(day):
+    """
+    Return start time of report for a specific day.
+    :param day:  Day for which to create the start time.
+    :return: Timestamp of the report start as unix timestamp
+    """
+    day = datetime.datetime.fromisoformat(day)
+    return day.timestamp()
+
+def tlsrpt_report_end_timestamp(day):
+    """
+    Return timestamp of report for a specific day.
+    :param day:  Day for which to create the timestamp.
+    :return: Timestamp of the report end as unix timestamp
+    """
+    start = tlsrpt_report_start_timestamp(day)
+    print("Value is", start, "and type is", type(start))
+    return start+24*3600-1
 
 def tlsrpt_utc_time_now():
     """

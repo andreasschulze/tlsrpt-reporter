@@ -380,6 +380,11 @@ class TLSRPTReporter:
     """
     The TLSRPT reporter class
     """
+
+    DEFAULT_CONFIG_FILE = "/etc/tlsrpt/reporter.cfg"
+    CONFIG_SECTION = "tlsrpt_reporter"
+    ENVIRONMENT_PREFIX = "TLSRPT_"
+
     def __init__(self, config: ConfigReporter):
         """
         :type config: ConfigReporter
@@ -961,9 +966,11 @@ def tlsrpt_reporter_main():
     sends the STMP TLS reports out the endpoints that the other MTA operators
     have published.
     """
-    (configvars, params) = options_from_cmd_cfg_env(options_reporter, "/etc/tlsrpt/reporter.cfg", "tlsrpt_reporter", "TLSRPT_",{})
+
+    (configvars, params) = options_from_cmd_cfg_env(options_reporter, TLSRPTReporter.DEFAULT_CONFIG_FILE,
+                                                    TLSRPTReporter.CONFIG_SECTION, TLSRPTReporter.ENVIRONMENT_PREFIX,
+                                                    {})
     config = ConfigReporter(**configvars)
-    print(config)
     setup_logging(config.reporter_logfilename, config.log_level)
 
     logger.info("TLSRPT reporter starting")

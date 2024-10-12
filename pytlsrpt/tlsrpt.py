@@ -33,8 +33,8 @@ import urllib.parse
 
 logger = logging.getLogger(__name__)
 
-from utility import *
-from config import *
+from pytlsrpt.utility import *
+from pytlsrpt.config import *
 
 # Constants
 TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel domain list"

@@ -80,3 +80,26 @@ def tlsrpt_utc_date_yesterday():
     ts = tlsrpt_utc_time_now()   # Making sure, ts is timezone-aware and UTC.
     dt = datetime.timedelta(days=-1)
     return (ts + dt).date()
+
+
+class Duration:
+    """
+    Time duration and rate measurement class
+    """
+    def __init__(self):
+        self.start()
+        self.count = 0
+
+    def start(self):
+        self.begin = datetime.datetime.now(datetime.timezone.utc)
+
+    def time(self):
+        n = datetime.datetime.now(datetime.timezone.utc)
+        d = n - self.begin
+        return d
+
+    def add(self, n=1):
+        self.count += n
+
+    def rate(self):
+        return self.count / self.time().total_seconds()

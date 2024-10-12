@@ -195,9 +195,10 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
 
         self.cfg = config
         self.uncommitted_datagrams = 0
+        self.total_datagrams_read = 0
         self.dbname = parsed.path
         logger.debug("Try to open database '%s'", self.dbname)
-        self.con = sqlite3.connect(self.dbname)
+        self.con = sqlite3.connect("file:///"+self.dbname, uri=True)
         self.cur = self.con.cursor()
         if self._check_database():
             logger.info("Database %s looks OK", self.dbname)
@@ -206,6 +207,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             self._setup_database()
         # Settings for flushing to disk
         self.commitEveryN = self.cfg.max_uncommited_datagrams
+        self.next_commit = tlsrpt_utc_time_now()
 
     def _setup_database(self):
         try:
@@ -244,8 +246,11 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         :return:
         """
         try:
+            # adjust next_commit now BEFORE the actual commit might fail!
+            # This way we avoid retrying it after each datagram and wasting too much time blocking in timeouts
+            self.next_commit = tlsrpt_utc_time_now() + datetime.timedelta(seconds=self.cfg.receiver_sockettimeout)
             self.con.commit()
-            logger.debug((reason+" with %d datagrams") % self.uncommitted_datagrams)
+            logger.debug("%s with %d datagrams (%d total)", reason, self.uncommitted_datagrams, self.total_datagrams_read)
             self.uncommitted_datagrams = 0
         except sqlite3.OperationalError as e:
             logger.error("Failed "+reason+" with %d datagrams: %s", self.uncommitted_datagrams, e)
@@ -254,7 +259,13 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         self._db_commit("Database commit due to timeout")
 
     def commit_after_n_datagrams(self):
-        self._db_commit("Database commit")
+        if tlsrpt_utc_time_now() > self.next_commit:
+            self._db_commit("Database commit due to overdue")
+        if self.uncommitted_datagrams >= self.commitEveryN:
+            # a database problem can cause a commit-attempt to hang
+            # do not retry after each additional datagram but wait for more data to accumulate before retrying
+            if (self.uncommitted_datagrams-self.commitEveryN) % self.cfg.retry_commit_datagram_count == 0:
+                self._db_commit("Database commit")
 
     def _add_policy(self, day, domain, tlsrptrecord, policy):
         """
@@ -302,11 +313,8 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
         self._add_policies_from_datagram(tlsrpt_utc_date_now(), datagram)
         # database maintenance
         self.uncommitted_datagrams += 1
-        if self.uncommitted_datagrams >= self.commitEveryN:
-            # a database problem can cause a commit-attempt to hang
-            # do not retry after each additional datagram but wait for more data to accumulate before retrying
-            if (self.uncommitted_datagrams-self.commitEveryN) % self.cfg.retry_commit_datagram_count == 0:
-                self.commit_after_n_datagrams()
+        self.total_datagrams_read += 1
+        self.commit_after_n_datagrams()
 
     def socket_timeout(self):
         """

@@ -40,4 +40,4 @@ test = [
 only-packages = false
 
 [tool.hatch.build.targets.wheel]
-packages = ["sys4-tlsrpt/tlsrpt"]
+packages = ["pytlsrpt"]

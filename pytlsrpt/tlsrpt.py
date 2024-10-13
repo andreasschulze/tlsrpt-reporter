@@ -947,7 +947,7 @@ class TLSRPTReporter:
         zreport = gzip.compress(report.encode("utf-8"), self.cfg.compression_level)
         # Send out the actual report
         if destination.startswith("mailto:"):
-            return self.send_out_report_to_mail(day, dom, d_r_id, uniqid, destination, zreport)
+            return self.send_out_report_to_mail(day, dom, d_r_id, uniqid, destination[7:], zreport)
         elif destination.startswith("https:"):
             return self.send_out_report_to_http(dom, d_r_id, destination, zreport)
         else:

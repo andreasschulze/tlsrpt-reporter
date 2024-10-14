@@ -23,6 +23,9 @@ import os
 
 
 def _options_from_cmd(options, pospar):
+    """
+    Helper function for options_from_cmd_cfg_env().
+    """
     parser = argparse.ArgumentParser(allow_abbrev=False)
     for k in options:
         parser.add_argument("--" + k, type=options[k]["type"], help=options[k]["help"])

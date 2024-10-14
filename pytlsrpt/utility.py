@@ -66,7 +66,7 @@ def tlsrpt_report_start_timestamp(day):
     :return: Timestamp of the report start as unix timestamp
     """
     day = datetime.datetime.fromisoformat(day)
-    return day.timestamp()
+    return int(day.timestamp())
 
 def tlsrpt_report_end_timestamp(day):
     """
@@ -76,7 +76,7 @@ def tlsrpt_report_end_timestamp(day):
     """
     start = tlsrpt_report_start_timestamp(day)
     print("Value is", start, "and type is", type(start))
-    return start+24*3600-1
+    return int(start+24*3600-1)
 
 def tlsrpt_utc_time_now():
     """

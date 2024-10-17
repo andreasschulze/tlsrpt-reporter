@@ -19,10 +19,6 @@
 
 import datetime
 
-#  used only for development
-def myprint(*args, **kwargs):
-    pass
-    return print(*args, **kwargs)
 
 def parse_tlsrpt_record(tlsrpt_record):
     """

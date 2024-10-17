@@ -51,6 +51,7 @@ EXIT_DB_SETUP_FAILURE = 1
 EXIT_WRONG_DB_VERSION = 2
 EXIT_USAGE = 3
 
+
 ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                         ['storage',
                                          'receiver_socketname',
@@ -62,6 +63,8 @@ ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                          'log_level',
                                          'dump_path_for_invalid_datagram'])
 
+
+# Available command line options for the receiver command.
 options_receiver = {
     "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite", "help": "Storage backend, multiple backends separated by comma"},
     "receiver_socketname": {"type": str, "default": "", "help": ""},
@@ -75,9 +78,7 @@ options_receiver = {
 }
 
 
-"""
-Positional parameters for fetcher
-"""
+# Positional parameters for fetcher
 pospars_fetcher = {
     "day": {"type": str, "help": "Day to fetch data for"},
     "domain": {"type": str, "help": "Domain to fetch data for, if omitted fetch list of domains"},
@@ -112,6 +113,7 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
                                          'max_retries_domaindetails',
                                          'min_wait_domaindetails',
                                          'max_wait_domaindetails'])
+
 
 options_reporter = {
     "reporter_logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": ""},

@@ -124,7 +124,7 @@ options_reporter = {
     "debug_send_file_dest": {"type": str, "default": "", "help": "Save all mail reports to this directory additionally"},
     "develmode": {"type": int, "default": 0, "help": "Enable development mode. DO NOT USE ON PRODUCTIVE SYSTEM!"},
     "reporter_dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": ""},
-    "reporter_fetchers": {"type": str, "default": "/usr/libexec/tlsrpt/fetcher.py", "help": ""},
+    "reporter_fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher", "help": ""},
     "organization_name": {"type": str, "default": "", "help": ""},
     "contact_info": {"type": str, "default": "", "help": ""},
     "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},

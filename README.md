@@ -2,6 +2,11 @@
 A set of libraries and tools to implement TLSRPT reporting into an MTA and to generate and submit TLSRPT reports.
 
 
+# How to build the TLSRPT C library
+
+Instructions how to build libtlsrpt can be found in [libtlsrpt/INSTALL](libtlsrpt/INSTALL).
+
+
 # How to setup the virtual environment for Python
 
 Clone this repository and chdir into to the root directory of the repository:

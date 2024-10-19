@@ -99,15 +99,11 @@ def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_sec
 
     # combine results
     result = {}
+    order = [ocmd, ocfg, oenv, odef]
     for k in options:
         tmp = None
-        if tmp is None and k in ocmd:
-            tmp = ocmd[k]
-        if tmp is None and k in ocfg:
-            tmp = ocfg[k]
-        if tmp is None and k in oenv:
-            tmp = oenv[k]
-        if tmp is None and k in odef:
-            tmp = odef[k]
+        for src in order:
+            if tmp is None and k in src:
+                tmp = src[k]
         result[k] = tmp
     return result, params

@@ -84,14 +84,14 @@ ConfigReceiver = collections.namedtuple("ConfigReceiver",
 # Available command line options for the receiver command.
 options_receiver = {
     "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite", "help": "Storage backend, multiple backends separated by comma"},
-    "receiver_socketname": {"type": str, "default": "", "help": ""},
-    "receiver_sockettimeout": {"type": int, "default": 5, "help": ""},
-    "max_uncommited_datagrams": {"type": int, "default": 1000, "help": ""},
-    "retry_commit_datagram_count": {"type": int, "default": 1000, "help": ""},
-    "receiver_logfilename": {"type": str, "default": "/var/log/tlsrpt/receiver.log", "help": ""},
-    "fetcher_logfilename": {"type": str, "default": "/var/log/tlsrpt/fetcher.log", "help": ""},
-    "log_level": {"type": str, "default": "warn", "help": "Log level"},
-    "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": ""},
+    "receiver_socketname": {"type": str, "default": "", "help": "Name of the unix domain socket to receive data"},
+    "receiver_sockettimeout": {"type": int, "default": 5, "help": "Read timeout for the socket"},
+    "max_uncommited_datagrams": {"type": int, "default": 1000, "help": "Commit after that many datagrams were received"},
+    "retry_commit_datagram_count": {"type": int, "default": 1000, "help": "Retry commit after that many datagrams more were received"},
+    "receiver_logfilename": {"type": str, "default": "/var/log/tlsrpt/receiver.log", "help": "Log file name for receiver"},
+    "fetcher_logfilename": {"type": str, "default": "/var/log/tlsrpt/fetcher.log", "help": "Log file name for fetcher"},
+    "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
+    "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": "Filename to save an invalid datagram"},
 }
 
 
@@ -133,17 +133,17 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
 
 
 options_reporter = {
-    "reporter_logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": ""},
+    "reporter_logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": "Log file name for reporter"},
     "log_level": {"type": str, "default": "warn", "help": "Log level"},
     "debug_db": {"type": int, "default": 0, "help": "Enable database debugging"},
     "debug_send_mail_dest": {"type": str, "default": "", "help": "Send all mail reports to this addres instead"},
     "debug_send_http_dest": {"type": str, "default": "", "help": "Post all mail reports to this server instead"},
     "debug_send_file_dest": {"type": str, "default": "", "help": "Save all mail reports to this directory additionally"},
     "develmode": {"type": int, "default": 0, "help": "Enable development mode. DO NOT USE ON PRODUCTIVE SYSTEM!"},
-    "reporter_dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": ""},
-    "reporter_fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher", "help": ""},
-    "organization_name": {"type": str, "default": "", "help": ""},
-    "contact_info": {"type": str, "default": "", "help": ""},
+    "reporter_dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": "Name of database file"},
+    "reporter_fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher", "help": "Comma-separated list of fetchers to collect data"},
+    "organization_name": {"type": str, "default": "", "help": "The name of the organization sending out the TLSRPT reports"},
+    "contact_info": {"type": str, "default": "", "help": "The contact information of the sending organization"},
     "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},
     "http_timeout": {"type": int, "default": 10, "help": "Timeout for HTTPS uploads"},
     "smtp_server": {"type": str, "default": "", "help": "SMTP server to use for sending email reports"},
@@ -152,14 +152,14 @@ options_reporter = {
     "max_receiver_timeout": {"type": int, "default": 10, "help": "Maximum expected receiver timeout"},
     "max_receiver_timediff": {"type": int, "default": 10, "help": "Maximum expected receiver time difference"},
     "max_retries_delivery": {"type": int, "default": 5, "help": "Maximum attempts to deliver a report"},
-    "min_wait_delivery": {"type": int, "default": 300, "help": "Minimum time in seconds between to delivery attempts"},
-    "max_wait_delivery": {"type": int, "default": 1800, "help": "Maximum time in seconds between to delivery attempts"},
-    "max_retries_domainlist": {"type": int, "default": 5, "help": ""},
-    "min_wait_domainlist": {"type": int, "default": 30, "help": ""},
-    "max_wait_domainlist": {"type": int, "default": 300, "help": ""},
-    "max_retries_domaindetails": {"type": int, "default": 5, "help": ""},
-    "min_wait_domaindetails": {"type": int, "default": 30, "help": ""},
-    "max_wait_domaindetails": {"type": int, "default": 300, "help": ""}
+    "min_wait_delivery": {"type": int, "default": 300, "help": "Minimum time in seconds between two delivery attempts"},
+    "max_wait_delivery": {"type": int, "default": 1800, "help": "Maximum time in seconds between two delivery attempts"},
+    "max_retries_domainlist": {"type": int, "default": 5, "help": "Maximum attempts to fetch the list of domains"},
+    "min_wait_domainlist": {"type": int, "default": 30, "help": "Minimum time in seconds between two domain list fetch attempts"},
+    "max_wait_domainlist": {"type": int, "default": 300, "help": "Maximum time in seconds between two domain list fetch attempts"},
+    "max_retries_domaindetails": {"type": int, "default": 5, "help": "Maximum attempts to fetch domain details"},
+    "min_wait_domaindetails": {"type": int, "default": 30, "help": "Minimum time in seconds between two domain detail fetch attempts"},
+    "max_wait_domaindetails": {"type": int, "default": 300, "help": "Maximum time in seconds between two domain detail fetch attempts"}
 }
 
 

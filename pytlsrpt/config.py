@@ -77,6 +77,7 @@ def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_sec
     else:
         ocfgitems = {}
 
+    # check for invalid options from config file
     for (k, v) in ocfgitems:
         if v is None or v == "":
             raise SyntaxError("Key " + k + " without value in config file " + config_file)

@@ -26,6 +26,8 @@ import random
 import smtplib
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
+from selectors import DefaultSelector, EVENT_READ
+import signal
 import socket
 import subprocess
 import sys
@@ -50,6 +52,21 @@ TLSRPT_MAX_READ_RECEIVER = 16*1024*1024
 EXIT_DB_SETUP_FAILURE = 1
 EXIT_WRONG_DB_VERSION = 2
 EXIT_USAGE = 3
+
+# Keyboard interrupt and signal handling
+interrupt_read, interrupt_write = socket.socketpair()
+
+
+def signalhandler(signum, frame):
+    """
+    Signal handler to intercept keyboard interrupt and other termination signals
+    :param signum: signal number
+    :param frame:
+    :return:
+    """
+    interrupt_write.send(bytes([signum]))
+signal.signal(signal.SIGINT, signalhandler)
+signal.signal(signal.SIGTERM, signalhandler)
 
 
 ConfigReceiver = collections.namedtuple("ConfigReceiver",
@@ -153,6 +170,7 @@ def setup_logging(filename, level):
     if not isinstance(numeric_level, int):
         raise ValueError("Invalid log level: %s" % level)
     logger.setLevel(numeric_level)
+
 
 
 class EmailReport(email.message.EmailMessage):
@@ -1012,6 +1030,8 @@ class TLSRPTReporter:
         """
         Main loop processing the various jobs and steps.
         """
+        sel = DefaultSelector()
+        sel.register(interrupt_read, EVENT_READ)
         while True:
             self.wake_up_in(self.cfg.interval_main_loop, True)
             self.check_day()
@@ -1023,9 +1043,17 @@ class TLSRPTReporter:
             seconds_to_sleep = dt.total_seconds()
             if seconds_to_sleep >= 0:
                 logger.info("Sleeping for %d seconds", seconds_to_sleep)
-                time.sleep(seconds_to_sleep)
             else:
                 logger.info("Skipping sleeping for negative %d seconds", seconds_to_sleep)
+            for key, _ in sel.select(timeout=seconds_to_sleep):
+                if key.fileobj == interrupt_read:
+                    signumb = interrupt_read.recv(1)
+                    signum = ord(signumb)
+                    logger.info(f"Caught signal {signum}, cleaning up")
+                    self.con.commit()
+                    logger.info("Done")
+                    return 0
+
 
     def create_email_subject(self, dom, d_r_id):
         return "Report Domain: " + dom + " Submitter: "+self.cfg.organization_name + " Report-ID: " + str(d_r_id)
@@ -1077,11 +1105,25 @@ def tlsrpt_receiver_main():
     if len(receivers) == 0:
         raise Exception("No receiver storage configured")
 
+    sel = DefaultSelector()
+    sel.register(interrupt_read, EVENT_READ)
+    sel.register(sock, EVENT_READ)
     while True:
         alldata = None  # clear old data to prevent accidentally processing it twice
         try:
             # Uncomment to test very low throughput
             # time.sleep(1)
+
+            for key, _ in sel.select():
+                if key.fileobj == interrupt_read:
+                    signumb = interrupt_read.recv(1)
+                    signum = ord(signumb)
+                    logger.info(f"Caught signal {signum}, cleaning up")
+                    for receiver in receivers:
+                        logger.info("Triggering socket timeout on receiver")
+                        receiver.socket_timeout()
+                    logger.info("Done")
+                    return 0
             alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_RECEIVER)
             j = json.loads(alldata)
             for receiver in receivers:

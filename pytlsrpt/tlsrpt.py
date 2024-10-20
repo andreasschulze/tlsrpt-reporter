@@ -172,7 +172,6 @@ def setup_logging(filename, level):
     logger.setLevel(numeric_level)
 
 
-
 class EmailReport(email.message.EmailMessage):
     """
     Extension of EmailMessage with get_header method
@@ -237,7 +236,7 @@ class DummyReceiver(TLSRPTReceiver):
 
     def add_datagram(self, datagram):
         if self.dolog:
-            logger.info(f"Dummy receiver got datagram {datagram}")
+            logger.info("Dummy receiver got datagram %s", datagram)
 
     def socket_timeout(self):
         if self.dolog:
@@ -315,7 +314,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             logger.debug("%s with %d datagrams (%d total)", reason, self.uncommitted_datagrams, self.total_datagrams_read)
             self.uncommitted_datagrams = 0
         except sqlite3.OperationalError as e:
-            logger.error("Failed "+reason+" with %d datagrams: %s", self.uncommitted_datagrams, e)
+            logger.error("Failed %s with %d datagrams: %s", reason, self.uncommitted_datagrams, e)
 
     def timed_commit(self):
         self._db_commit("Database commit due to timeout")
@@ -394,7 +393,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
         List domains contained in this receiver database for a specific day
         :param day: The day for which to create a report
         """
-        logger.info(f"TLSRPT fetcher domain list starting for day {day}")
+        logger.info("TLSRPT fetcher domain list starting for day %s", day)
         # protocol header line 1: the protocol version
         print(TLSRPT_FETCHER_VERSION_STRING_V1)
         # line 2: timeout in seconds so fetching can be rescheduled after a timeout commit, or warn about too big delay
@@ -413,7 +412,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
                 linenumber += 1
                 print(row[0])
             except BrokenPipeError as err:
-                logger.warning(f"Error when writing line {linenumber} : ", err)
+                logger.warning("Error when writing line %d: %s", linenumber, err)
                 return
         # terminate domain list with a single dot
         print(".")
@@ -424,7 +423,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
         :param day: The day for which to print the report details
         :param domain: The domain for which to print the report details
         """
-        logger.info(f"TLSRPT fetcher domain details starting for day {day} and domain {domain}")
+        logger.info("TLSRPT fetcher domain details starting for day %s and domain %s", day, domain)
         policies = {}
         dlcursor = self.con.cursor()
         dlcursor.execute("SELECT domain, policy, tlsrptrecord, cntrtotal, cntrfailure "
@@ -616,15 +615,15 @@ class TLSRPTReporter:
         args.append(day.__str__())
         fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
         versionheader = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
-        logger.debug(f"From fetcher {fetcherindex} got version header: {versionheader}")
+        logger.debug("From fetcher %d got version header: %s", fetcherindex, versionheader)
         if versionheader != TLSRPT_FETCHER_VERSION_STRING_V1:
-            logger.error(f"Unsupported protocol version from fetcher {fetcherindex} '{fetcher}': {versionheader}")
+            logger.error("Unsupported protocol version from fetcher %d '%s' :%s", fetcherindex, fetcher, versionheader)
             return False
         # get socket timeout and therefore the commit lag of this receiver
         receiver_timeout = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         if int(receiver_timeout) > self.cfg.max_receiver_timeout:
-            logger.warning(f"Receiver timeout {receiver_timeout} greater than maximum of "
-                           f"{self.cfg.max_receiver_timeout} on fetcher {fetcherindex} {fetcher}")
+            logger.warning("Receiver timeout %s greater than maximum of %s on fetcher %d %s", receiver_timeout,
+                           self.cfg.max_receiver_timeout, fetcherindex, fetcher)
         # get current time of this receiver
         receiver_time_string = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         receiver_time = datetime.datetime.strptime(receiver_time_string, TLSRPT_TIMEFORMAT). \
@@ -632,8 +631,8 @@ class TLSRPTReporter:
         reporter_time = tlsrpt_utc_time_now()
         dt = reporter_time - receiver_time
         if abs(dt.total_seconds()) > self.cfg.max_receiver_timediff:
-            logger.warning(f"Receiver time {receiver_time} and reporter time {reporter_time} differ more then "
-                           f"{self.cfg.max_receiver_timediff} on fetcher {fetcherindex} {fetcher}")
+            logger.warning("Receiver time %s and reporter time %s differ more then %s on fetcher %d %s", receiver_time,
+                           reporter_time, self.cfg.max_receiver_timediff, fetcherindex, fetcher)
 
         self.cur.execute("SAVEPOINT domainlist")
         # read the domain list
@@ -664,15 +663,15 @@ class TLSRPTReporter:
             result = False
 
         if result:
-            logger.info(f"DB-commit for fetcher {fetcherindex} {fetcher}")
+            logger.info("DB-commit for fetcher %d %s", fetcherindex, fetcher)
             self.cur.execute("RELEASE SAVEPOINT domainlist")
             self.con.commit()
         else:
-            logger.info(f"DB-rollback for fetcher {fetcherindex} {fetcher}")
+            logger.info("DB-rollback for fetcher %d %s", fetcherindex, fetcher)
             self.cur.execute("ROLLBACK TO SAVEPOINT domainlist")
             self.con.commit()
         duration.add(dc)
-        logger.info(f"Fetching {dc} domains took {duration.time()}, {duration.rate()} domains per second")
+        logger.info("Fetching %d domains took %s, %s domains per second", dc, duration.time(), duration.rate())
         return result
 
     def select_incomplete_days(self, cursor):
@@ -1017,13 +1016,13 @@ class TLSRPTReporter:
         :return: The new wake up time
         """
         if self.wakeuptime > t:
-            logger.debug(f"Changing wake up time from {self.wakeuptime} to {t}")
+            logger.debug("Changing wake up time from %s to %s", self.wakeuptime, t)
             self.wakeuptime = t
         elif force:
-            logger.debug(f"Enforcing wake up time from {self.wakeuptime} to {t}")
+            logger.debug("Enforcing wake up time from %s to %s", self.wakeuptime, t)
             self.wakeuptime = t
         else:
-            logger.debug(f"Not changing wake up time from {self.wakeuptime} to {t}")
+            logger.debug("Not changing wake up time from %s to %s", self.wakeuptime, t)
         return self.wakeuptime
 
     def run_loop(self):
@@ -1049,7 +1048,7 @@ class TLSRPTReporter:
                 if key.fileobj == interrupt_read:
                     signumb = interrupt_read.recv(1)
                     signum = ord(signumb)
-                    logger.info(f"Caught signal {signum}, cleaning up")
+                    logger.info("Caught signal %d, cleaning up", signum)
                     self.con.commit()
                     logger.info("Done")
                     return 0
@@ -1094,7 +1093,7 @@ def tlsrpt_receiver_main():
     # Bind the socket to the port
     if server_address is None or server_address == "":
         raise Exception("No receiver_socketname configured")
-    logger.info("Listening on socket '%s'" % server_address)
+    logger.info("Listening on socket '%s'", server_address)
     sock.bind(server_address)
     sock.settimeout(config.receiver_sockettimeout)
 
@@ -1118,7 +1117,7 @@ def tlsrpt_receiver_main():
                 if key.fileobj == interrupt_read:
                     signumb = interrupt_read.recv(1)
                     signum = ord(signumb)
-                    logger.info(f"Caught signal {signum}, cleaning up")
+                    logger.info("Caught signal %d, cleaning up", signum)
                     for receiver in receivers:
                         logger.info("Triggering socket timeout on receiver")
                         receiver.socket_timeout()
@@ -1130,22 +1129,22 @@ def tlsrpt_receiver_main():
                 try:
                     receiver.add_datagram(j)
                 except KeyError as err:
-                    logger.error(f"KeyError {err} during processing datagram: {json.dumps(j)}")
+                    logger.error("KeyError %s during processing datagram: %s", str(err), json.dumps(j))
                     raise err
         except socket.timeout:
             for receiver in receivers:
                 receiver.socket_timeout()
         except OSError as err:
-            logger.error(f"OS-Error: {err}")
+            logger.error("OS-Error: %s", str(err))
             raise
         except UnicodeDecodeError as err:
-            logger.error(f"Malformed utf8 data received: {err}")
+            logger.error("Malformed utf8 data received: %s", str(err))
             Path(config.dump_path_for_invalid_datagram).write_bytes(alldata)
         except json.decoder.JSONDecodeError as err:
-            logger.error(f"JSON decode error: {err}")
+            logger.error("JSON decode error: %s", str(err))
             Path(config.dump_path_for_invalid_datagram).write_text(alldata.decode("utf-8"), encoding="utf-8")
         except sqlite3.OperationalError as err:
-            logger.error(f"Database error: {err}")
+            logger.error("Database error: %s", str(err))
 
 
 def tlsrpt_fetcher_main():

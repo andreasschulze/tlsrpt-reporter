@@ -1095,7 +1095,8 @@ def tlsrpt_receiver_main():
         raise Exception("No receiver_socketname configured")
     logger.info("Listening on socket '%s'", server_address)
     sock.bind(server_address)
-    sock.settimeout(config.receiver_sockettimeout)
+    #sock.settimeout(config.receiver_sockettimeout)  # timeout is now handled via DefaultSelector
+    sock.setblocking(False)
 
     # Multiple receivers to be set-up from configuration
     receivers = []
@@ -1113,7 +1114,8 @@ def tlsrpt_receiver_main():
             # Uncomment to test very low throughput
             # time.sleep(1)
 
-            for key, _ in sel.select():
+            hadData = 0
+            for key, _ in sel.select(timeout=config.receiver_sockettimeout):
                 if key.fileobj == interrupt_read:
                     signumb = interrupt_read.recv(1)
                     signum = ord(signumb)
@@ -1123,14 +1125,19 @@ def tlsrpt_receiver_main():
                         receiver.socket_timeout()
                     logger.info("Done")
                     return 0
-            alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_RECEIVER)
-            j = json.loads(alldata)
-            for receiver in receivers:
-                try:
-                    receiver.add_datagram(j)
-                except KeyError as err:
-                    logger.error("KeyError %s during processing datagram: %s", str(err), json.dumps(j))
-                    raise err
+                if key.fileobj == sock:
+                    hadData +=1
+                    alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_RECEIVER)
+                    j = json.loads(alldata)
+                    for receiver in receivers:
+                        try:
+                            receiver.add_datagram(j)
+                        except KeyError as err:
+                            logger.error("KeyError %s during processing datagram: %s", str(err), json.dumps(j))
+                            raise err
+            if hadData == 0:
+                for receiver in receivers:
+                    receiver.socket_timeout()
         except socket.timeout:
             for receiver in receivers:
                 receiver.socket_timeout()

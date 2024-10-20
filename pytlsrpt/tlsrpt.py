@@ -291,6 +291,8 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver):
             # adjust next_commit now BEFORE the actual commit might fail!
             # This way we avoid retrying it after each datagram and wasting too much time blocking in timeouts
             self.next_commit = tlsrpt_utc_time_now() + datetime.timedelta(seconds=self.cfg.receiver_sockettimeout)
+            if self.uncommitted_datagrams == 0:
+                return  # do not perform unneeded commits and do not flood debug logs
             self.con.commit()
             logger.debug("%s with %d datagrams (%d total)", reason, self.uncommitted_datagrams, self.total_datagrams_read)
             self.uncommitted_datagrams = 0

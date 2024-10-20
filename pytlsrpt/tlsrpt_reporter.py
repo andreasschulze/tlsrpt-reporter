@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 #    Copyright (C) 2024 sys4 AG
 #    Author Boris Lohner bl@sys4.de

@@ -931,7 +931,7 @@ class TLSRPTReporter:
             self.send_out_report_to_file(dom, d_r_id, "THE_EMAIL_TO_"+destination, reportemail, debugdir)
         result = False
         try:
-            with subprocess.Popen(["sendmail", "-i", "-t"], stdin=PIPE) as proc:
+            with subprocess.Popen(["sendmail", "-i", "-t"], stdin=subprocess.PIPE) as proc:
                 proc.stdin.write(msg.as_string(policy=email.policy.SMTP).encode(encoding="utf8"))
                 return True
             with smtplib.SMTP(self.cfg.smtp_server) as s:

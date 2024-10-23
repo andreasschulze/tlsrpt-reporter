@@ -1072,7 +1072,7 @@ def tlsrpt_receiver_main():
     receive TLSRPT datagrams from the MTA (e.g. Postfix). and writes the
     datagrams to the database.
     """
-    (configvars, params) = options_from_cmd_cfg_env(options_receiver,  TLSRPTReceiver.DEFAULT_CONFIG_FILE,
+    (configvars, params) = options_from_cmd_env_cfg(options_receiver,  TLSRPTReceiver.DEFAULT_CONFIG_FILE,
                                                     TLSRPTReceiver.CONFIG_SECTION, TLSRPTReceiver.ENVIRONMENT_PREFIX,
                                                     {})
     config = ConfigReceiver(**configvars)
@@ -1163,7 +1163,7 @@ def tlsrpt_fetcher_main():
     read the database entries that were written by the receiver.
     """
     # TLSRPT-fetcher is tightly coupled to TLSRPT-receiver and uses its config and database
-    (configvars, params) = options_from_cmd_cfg_env(options_receiver, TLSRPTReceiver.DEFAULT_CONFIG_FILE,
+    (configvars, params) = options_from_cmd_env_cfg(options_receiver, TLSRPTReceiver.DEFAULT_CONFIG_FILE,
                                                     TLSRPTReceiver.CONFIG_SECTION, TLSRPTReceiver.ENVIRONMENT_PREFIX,
                                                     pospars_fetcher)
     config = ConfigReceiver(**configvars)
@@ -1192,7 +1192,7 @@ def tlsrpt_reporter_main():
     have published.
     """
 
-    (configvars, params) = options_from_cmd_cfg_env(options_reporter, TLSRPTReporter.DEFAULT_CONFIG_FILE,
+    (configvars, params) = options_from_cmd_env_cfg(options_reporter, TLSRPTReporter.DEFAULT_CONFIG_FILE,
                                                     TLSRPTReporter.CONFIG_SECTION, TLSRPTReporter.ENVIRONMENT_PREFIX,
                                                     {})
     config = ConfigReporter(**configvars)

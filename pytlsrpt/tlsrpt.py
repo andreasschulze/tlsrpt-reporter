@@ -259,11 +259,19 @@ class DummyReceiver(TLSRPTReceiver):
             logger.info("Dummy receiver got socket timeout")
 
 
-class VersionedSQLiteReceiverBase():
+class VersionedSQLite(metaclass=ABCMeta):
+    """
+    Abstract base class for versioned SQLite databases
+    """
     def _setup_database(self):
+        """
+        Set up the database: Create tables and manage version information
+        :return:
+        """
         try:
             ddl = self._ddl()
             for ddlstatement in ddl:
+                logger.debug("DDL %s", ddlstatement)
                 self.cur.execute(ddlstatement)
             self.con.commit()
             logger.info("Database '%s' setup finished", self.dbname)
@@ -271,26 +279,55 @@ class VersionedSQLiteReceiverBase():
             logger.error("Database '%s' setup failed: %s", self.dbname, err)
             sys.exit(EXIT_DB_SETUP_FAILURE)
 
-    def _check_database(self):
+    def _check_database(self) -> bool:
+        """
+        Tries to run a database query, returns True if database has the correct
+        version and works as expected. If the database has wrong database
+        version, the whole program execution is terminated.
+        """
         try:
-            self.cur.execute("SELECT version, installdate FROM tlsrptreceiverdbversion")
-            row = self.cur.fetchone()
-            if row[0] != 1:
-                logger.error("Database has wrong version, expected 1 but got %s", row)
+            self.cur.execute("SELECT version, installdate, purpose FROM dbversion")
+            (version, installdate, purpose) = self.cur.fetchone()
+            if purpose != self._db_purpose():
+                logger.error("Database has wrong purpose, expected %s but got %s", self._db_purpose(), purpose)
+                sys.exit(EXIT_WRONG_DB_VERSION)
+            if version != 1:
+                logger.error("Database has wrong version, expected 1 but got %s", version)
                 sys.exit(EXIT_WRONG_DB_VERSION)
             return True
         except Exception as err:
             logger.info("Database check failed: %s", err)
             return False
 
+    @abstractmethod
+    def _ddl(self):
+        """
+        Defines the database structure
+        :return: an array of DDL statements to create for example the tables and indices
+        """
+        pass
+
+    @abstractmethod
+    def _db_purpose(self):
+        """
+        Defines the purpose of the database to distinguish it from other databases
+        :return: A string defining he database purpose
+        """
+        pass
+
+
+class VersionedSQLiteReceiverBase(VersionedSQLite):
+    def _db_purpose(self):
+        return "TLSRPT-Receiver-DB"
+
     def _ddl(self):
         return ["CREATE TABLE finalresults(day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure, "
                 "PRIMARY KEY(day, domain, tlsrptrecord, policy))",
                 "CREATE TABLE failures(day, domain, tlsrptrecord, policy, reason, cntr, "
                 "PRIMARY KEY(day, domain, tlsrptrecord, policy, reason))",
-                "CREATE TABLE tlsrptreceiverdbversion(version, installdate)",
-                "INSERT INTO tlsrptreceiverdbversion(version, installdate) "
-                " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'))"]
+                "CREATE TABLE dbversion(version, installdate, purpose)",
+                "INSERT INTO dbversion(version, installdate, purpose) "
+                " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'),'"+self._db_purpose()+"')"]
 
 
 class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
@@ -404,6 +441,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
         Commit database to disk periodically
         """
         self.timed_commit()
+
 
 class TLSRPTFetcher(metaclass=ABCMeta):
     """
@@ -519,7 +557,7 @@ class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):
         print(json.dumps(details, indent=4))
 
 
-class TLSRPTReporter:
+class TLSRPTReporter(VersionedSQLite):
     """
     The TLSRPT reporter class
     """
@@ -546,48 +584,22 @@ class TLSRPTReporter:
         if self.cfg.debug_db:
             self.con.set_trace_callback(print)
 
-    def _setup_database(self) -> None:
-        """
-        Create the database table structure. If the database setup cannot be
-        completed, program execution is terminated with non-zero return value.
-        """
-        try:
-            ddl = ["CREATE TABLE fetchjobs(day, fetcherindex, fetcher, retries, status, nexttry, "
-                   "PRIMARY KEY(day, fetcherindex))",
-                   "CREATE TABLE reportdata(day, domain, data, fetcher, fetcherindex, retries, status, nexttry, "
-                   "PRIMARY KEY(day, domain, fetcher))",
-                   "CREATE TABLE reports(r_id INTEGER PRIMARY KEY ASC, day, domain, uniqid, tlsrptrecord, report)",
-                   "CREATE TABLE destinations(destination, d_r_id INTEGER, retries, status, nexttry, "
-                   "PRIMARY KEY(destination, d_r_id), "
-                   "FOREIGN KEY(d_r_id) REFERENCES reports(r_id))",
-                   "CREATE TABLE tlsrptreporterdbversion(version, installdate)",
-                   "INSERT INTO tlsrptreporterdbversion(version, installdate) "
-                   " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'))"]
-            for ddlstatement in ddl:
-                logger.debug("Database '%s' DDL %s", self.dbname, ddlstatement)
-                self.cur.execute(ddlstatement)
-            self.con.commit()
-            logger.info("Database '%s' setup finished", self.dbname)
-        except Exception as err:
-            logger.error("Database '%s' setup failed: %s", self.dbname, err)
-            sys.exit(EXIT_DB_SETUP_FAILURE)
+    def _db_purpose(self):
+        return "TLSRPT-Reporter-DB"
 
-    def _check_database(self) -> bool:
-        """
-        Tries to run a database query, returns True if database has the correct
-        version and works as expected. If the database has wrong database
-        version, the whole program execution is terminated.
-        """
-        try:
-            self.cur.execute("SELECT version, installdate FROM tlsrptreporterdbversion")
-            row = self.cur.fetchone()
-            if row[0] != 1:
-                logger.error("Database has wrong version, expected 1 but got %s", row)
-                sys.exit(EXIT_WRONG_DB_VERSION)
-            return True
-        except Exception as err:
-            logger.error("Database check failed: %s", err)
-            return False
+    def _ddl(self):
+        return ["CREATE TABLE fetchjobs(day, fetcherindex, fetcher, retries, status, nexttry, "
+                "PRIMARY KEY(day, fetcherindex))",
+                "CREATE TABLE reportdata(day, domain, data, fetcher, fetcherindex, retries, status, nexttry, "
+                "PRIMARY KEY(day, domain, fetcher))",
+                "CREATE TABLE reports(r_id INTEGER PRIMARY KEY ASC, day, domain, uniqid, tlsrptrecord, report)",
+                "CREATE TABLE destinations(destination, d_r_id INTEGER, retries, status, nexttry, "
+                "PRIMARY KEY(destination, d_r_id), "
+                "FOREIGN KEY(d_r_id) REFERENCES reports(r_id))",
+                "CREATE TABLE dbversion(version, installdate, purpose)",
+                "INSERT INTO dbversion(version, installdate, purpose) "
+                " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'),'"+self._db_purpose()+"')"]
+
 
     def get_fetchers(self):
         """

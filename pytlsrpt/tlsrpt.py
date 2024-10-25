@@ -969,6 +969,8 @@ class TLSRPTReporter:
         dest = self.cfg.debug_send_mail_dest
         if dest is None or dest == "":
             dest = destination
+        else:
+            logger.warning("Overriding destination %s to %s", destination, dest)
 
         # Call send script
         msg = EmailReport()
@@ -1015,6 +1017,8 @@ class TLSRPTReporter:
         dest = self.cfg.debug_send_http_dest
         if dest is None or dest == "":
             dest = destination
+        else:
+            logger.warning("Overriding destination %s to %s", destination, dest)
         # Post the report
         headers = {"Content-Type": "application/tlsrpt+gzip"}
         req = urllib.request.Request(dest, zreport, headers)

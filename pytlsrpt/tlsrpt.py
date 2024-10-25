@@ -1026,6 +1026,13 @@ class TLSRPTReporter:
         except urllib.error.URLError as e:
             logger.warning("Error in uploading to '%s': %s", destination, e)
             return False
+        except socket.timeout as e:
+            logger.warning("Timeout after %d seconds in uploading to '%s': %s", self.cfg.http_timeout, destination, e)
+            return False
+        except Exception as e:
+            logger.warning("Unexpected error in uploading to '%s': %s", destination, e)
+            return False
+
 
     def send_out_report(self, day, dom, d_r_id, uniqid, destination, report):
         # Dump report as a file for debugging

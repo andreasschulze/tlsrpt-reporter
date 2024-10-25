@@ -129,7 +129,8 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
                                          'contact_info',
                                          'compression_level',
                                          'http_timeout',
-                                         'smtp_server',
+                                         'sendmail_script',
+                                         'sendmail_timeout',
                                          'spread_out_delivery',
                                          'interval_main_loop',
                                          'max_receiver_timeout',
@@ -160,7 +161,8 @@ options_reporter = {
     "contact_info": {"type": str, "default": "", "help": "The contact information of the sending organization"},
     "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},
     "http_timeout": {"type": int, "default": 10, "help": "Timeout for HTTPS uploads"},
-    "smtp_server": {"type": str, "default": "", "help": "SMTP server to use for sending email reports"},
+    "sendmail_script": {"type": str, "default": "sendmail -i -t", "help": "sendmail script"},
+    "sendmail_timeout": {"type": int, "default": 10, "help": "Timeout for sendmail script"},
     "spread_out_delivery": {"type": int, "default": 36000, "help": "Time range in seconds to spread out report delivery"},
     "interval_main_loop": {"type": int, "default": 300, "help": "Maximum sleep interval in main loop"},
     "max_receiver_timeout": {"type": int, "default": 10, "help": "Maximum expected receiver timeout"},
@@ -998,18 +1000,19 @@ class TLSRPTReporter:
             self.send_out_report_to_file(dom, d_r_id, "THE_EMAIL_TO_"+destination, reportemail, debugdir)
         result = False
         try:
-            with subprocess.Popen(["sendmail", "-i", "-t"], stdin=subprocess.PIPE) as proc:
-                proc.stdin.write(msg.as_string(policy=email.policy.SMTP).encode(encoding="utf8"))
+            logger.debug("Calling sendmail_script %s", self.cfg.sendmail_script)
+            proc = subprocess.Popen(self.cfg.sendmail_script, shell=True, stdin=subprocess.PIPE, close_fds=True)
+            proc.stdin.write(msg.as_string(policy=email.policy.SMTP).encode(encoding="utf8"))
+            proc.stdin.close()
+            mailCommandResult = proc.wait(timeout=self.cfg.sendmail_timeout)
+            if mailCommandResult == 0:
                 return True
-            with smtplib.SMTP(self.cfg.smtp_server) as s:
-                refused = s.send_message(msg)
-                if len(refused) == 0:
-                    result = True
-                    logger.warning("Sent report email to %s", dest)
-                else:
-                    logger.warning("Delivery error in sending report email to %s: %s", dest, refused.__str__())
+            else:
+                logger.warning(f"Mail command exit code {mailCommandResult}")
+        except subprocess.TimeoutExpired as e:
+            logger.error("Timeout after %d seconds sending report email to %s: %s", self.cfg.sendmail_timeout, dest, e)
         except Exception as e:
-            logger.error("Exception in sending report email to %s: %s", dest, e)
+            logger.error("Exception %s in sending report email to %s: %s", e.__class__.__name__, dest, e)
         return result
 
     def send_out_report_to_http(self, dom, d_r_id, destination, zreport):

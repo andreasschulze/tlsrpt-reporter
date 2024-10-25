@@ -2,7 +2,8 @@ import unittest
 import os
 import sys
 
-from pytlsrpt.tlsrpt import ConfigReceiver, ConfigReporter, options_from_cmd_cfg_env, options_receiver, options_reporter,TLSRPTReceiver, TLSRPTReporter, pospars_fetcher
+from pytlsrpt.tlsrpt import ConfigReceiver, ConfigReporter, options_from_cmd_cfg_env, options_receiver, \
+    options_reporter, TLSRPTReceiver, TLSRPTFetcher, TLSRPTReporter, pospars_fetcher
 
 class MyTestCase(unittest.TestCase):
     """
@@ -21,15 +22,16 @@ class MyTestCase(unittest.TestCase):
                                                         {})
         config = ConfigReceiver(**configvars)
         self.assertEqual(config.log_level, "debug")
-        self.assertEqual(config.receiver_logfilename, "/tmp/tlsrpt-receiver.log")
+        self.assertEqual(config.logfilename, "/tmp/tlsrpt-receiver.log")
 
     def test_fetcher_config(self):
-        (configvars, params) = options_from_cmd_cfg_env(options_receiver, TLSRPTReceiver.DEFAULT_CONFIG_FILE,
-                                                        TLSRPTReceiver.CONFIG_SECTION,
-                                                        TLSRPTReceiver.ENVIRONMENT_PREFIX,
+        (configvars, params) = options_from_cmd_cfg_env(options_receiver, TLSRPTFetcher.DEFAULT_CONFIG_FILE,
+                                                        TLSRPTFetcher.CONFIG_SECTION,
+                                                        TLSRPTFetcher.ENVIRONMENT_PREFIX,
                                                         pospars_fetcher)
         config = ConfigReceiver(**configvars)
         self.assertEqual(config.log_level, "debug")
+        self.assertEqual(config.logfilename, "/tmp/tlsrpt-fetcher.log")
 
     def test_reporter_config(self):
         (configvars, params) = options_from_cmd_cfg_env(options_reporter, TLSRPTReporter.DEFAULT_CONFIG_FILE,
@@ -38,7 +40,7 @@ class MyTestCase(unittest.TestCase):
                                                         {})
         config = ConfigReporter(**configvars)
         self.assertEqual(config.log_level, "debug")
-        self.assertEqual(config.reporter_logfilename, "/tmp/tlsrpt-reporter.log")
+        self.assertEqual(config.logfilename, "/tmp/tlsrpt-reporter.log")
 
 
 if __name__ == '__main__':

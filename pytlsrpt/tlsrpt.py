@@ -43,7 +43,7 @@ from pytlsrpt.utility import *
 from pytlsrpt.config import *
 
 # Constants
-TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel domain list"
+TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel-b domain list"
 TLSRPT_TIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 TLSRPT_MAX_READ_FETCHER = 16*1024*1024
 TLSRPT_MAX_READ_RECEIVER = 16*1024*1024
@@ -396,9 +396,7 @@ class TLSRPTFetcherSQLite(TLSRPTReceiverSQLite):
         logger.info("TLSRPT fetcher domain list starting for day %s", day)
         # protocol header line 1: the protocol version
         print(TLSRPT_FETCHER_VERSION_STRING_V1)
-        # line 2: timeout in seconds so fetching can be rescheduled after a timeout commit, or warn about too big delay
-        print(self.cfg.receiver_sockettimeout)
-        # line 3: current time so fetching can be rescheduled to account for clock offset, or warn about too big delay
+        # line 2: current time so fetching can be rescheduled to account for clock offset, or warn about too big delay
         print(tlsrpt_utc_time_now().strftime(TLSRPT_TIMEFORMAT))
         # protocol header finished
         # send domains
@@ -619,11 +617,6 @@ class TLSRPTReporter:
         if versionheader != TLSRPT_FETCHER_VERSION_STRING_V1:
             logger.error("Unsupported protocol version from fetcher %d '%s' :%s", fetcherindex, fetcher, versionheader)
             return False
-        # get socket timeout and therefore the commit lag of this receiver
-        receiver_timeout = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
-        if int(receiver_timeout) > self.cfg.max_receiver_timeout:
-            logger.warning("Receiver timeout %s greater than maximum of %s on fetcher %d %s", receiver_timeout,
-                           self.cfg.max_receiver_timeout, fetcherindex, fetcher)
         # get current time of this receiver
         receiver_time_string = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         receiver_time = datetime.datetime.strptime(receiver_time_string, TLSRPT_TIMEFORMAT). \

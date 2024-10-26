@@ -23,7 +23,6 @@ import gzip
 import json
 import logging
 import random
-import smtplib
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from selectors import DefaultSelector, EVENT_READ
@@ -32,7 +31,6 @@ import socket
 import subprocess
 import sys
 import sqlite3
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -450,6 +448,7 @@ class TLSRPTFetcher(metaclass=ABCMeta):
     DEFAULT_CONFIG_FILE = "/etc/tlsrpt/fetcher.cfg"
     CONFIG_SECTION = "tlsrpt_fetcher"
     ENVIRONMENT_PREFIX = "TLSRPT_FETCHER_"
+
     @abstractmethod
     def fetch_domain_list(self, day):
         """
@@ -459,7 +458,7 @@ class TLSRPTFetcher(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def fetch_domain_details(self, day):
+    def fetch_domain_details(self, day, domain):
         """
         Print out report details for a domain on a specific day
         :param day: The day for which to print the report details
@@ -599,7 +598,6 @@ class TLSRPTReporter(VersionedSQLite):
                 "CREATE TABLE dbversion(version, installdate, purpose)",
                 "INSERT INTO dbversion(version, installdate, purpose) "
                 " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'),'"+self._db_purpose()+"')"]
-
 
     def get_fetchers(self):
         """
@@ -1016,11 +1014,11 @@ class TLSRPTReporter(VersionedSQLite):
             proc = subprocess.Popen(self.cfg.sendmail_script, shell=True, stdin=subprocess.PIPE, close_fds=True)
             proc.stdin.write(msg.as_string(policy=email.policy.SMTP).encode(encoding="utf8"))
             proc.stdin.close()
-            mailCommandResult = proc.wait(timeout=self.cfg.sendmail_timeout)
-            if mailCommandResult == 0:
+            mail_command_result = proc.wait(timeout=self.cfg.sendmail_timeout)
+            if mail_command_result == 0:
                 return True
             else:
-                logger.warning(f"Mail command exit code {mailCommandResult}")
+                logger.warning(f"Mail command exit code {mail_command_result}")
         except subprocess.TimeoutExpired as e:
             logger.error("Timeout after %d seconds sending report email to %s: %s", self.cfg.sendmail_timeout, dest, e)
         except Exception as e:
@@ -1051,7 +1049,6 @@ class TLSRPTReporter(VersionedSQLite):
         except Exception as e:
             logger.warning("Unexpected error in uploading to '%s': %s", destination, e)
             return False
-
 
     def send_out_report(self, day, dom, d_r_id, uniqid, destination, report):
         # Dump report as a file for debugging
@@ -1147,7 +1144,6 @@ class TLSRPTReporter(VersionedSQLite):
                     logger.info("Done")
                     return 0
 
-
     def create_email_subject(self, dom, d_r_id):
         return "Report Domain: " + dom + " Submitter: "+self.cfg.organization_name + " Report-ID: " + str(d_r_id)
 
@@ -1189,7 +1185,6 @@ def tlsrpt_receiver_main():
         raise Exception("No receiver_socketname configured")
     logger.info("Listening on socket '%s'", server_address)
     sock.bind(server_address)
-    #sock.settimeout(config.receiver_sockettimeout)  # timeout is now handled via DefaultSelector
     sock.setblocking(False)
 
     # Multiple receivers to be set-up from configuration
@@ -1208,7 +1203,7 @@ def tlsrpt_receiver_main():
             # Uncomment to test very low throughput
             # time.sleep(1)
 
-            hadData = 0
+            had_data = 0
             for key, _ in sel.select(timeout=config.sockettimeout):
                 if key.fileobj == interrupt_read:
                     signumb = interrupt_read.recv(1)
@@ -1220,7 +1215,7 @@ def tlsrpt_receiver_main():
                     logger.info("Done")
                     return 0
                 if key.fileobj == sock:
-                    hadData +=1
+                    had_data += 1
                     alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_RECEIVER)
                     j = json.loads(alldata)
                     for receiver in receivers:
@@ -1229,7 +1224,7 @@ def tlsrpt_receiver_main():
                         except KeyError as err:
                             logger.error("KeyError %s during processing datagram: %s", str(err), json.dumps(j))
                             raise err
-            if hadData == 0:
+            if had_data == 0:
                 for receiver in receivers:
                     receiver.socket_timeout()
         except socket.timeout:
@@ -1265,9 +1260,9 @@ def tlsrpt_fetcher_main():
     url = config.storage.split(",")[0]
     try:
         fetcher = TLSRPTFetcher.factory(url, config)
-    except ExceptionA as e:
+    except Exception as e:
         logger.error("Can not create fetcher from '%s': %s", url, str(e))
-        #sys.exit(EXIT_USAGE)
+        sys.exit(EXIT_USAGE)
 
     if params["day"] is None or params["day"] == "":
         print("Usage: %s day [domain]", file=sys.stderr)

@@ -210,7 +210,7 @@ class TLSRPTReceiver(metaclass=ABCMeta):
     """
     DEFAULT_CONFIG_FILE = "/etc/tlsrpt/receiver.cfg"
     CONFIG_SECTION = "tlsrpt_receiver"
-    ENVIRONMENT_PREFIX = "TLSRPT_"
+    ENVIRONMENT_PREFIX = "TLSRPT_RECEIVER_"
 
     @abstractmethod
     def add_datagram(self, datagram):
@@ -449,7 +449,7 @@ class TLSRPTFetcher(metaclass=ABCMeta):
     """
     DEFAULT_CONFIG_FILE = "/etc/tlsrpt/fetcher.cfg"
     CONFIG_SECTION = "tlsrpt_fetcher"
-    ENVIRONMENT_PREFIX = "TLSRPT_"
+    ENVIRONMENT_PREFIX = "TLSRPT_FETCHER_"
     @abstractmethod
     def fetch_domain_list(self, day):
         """
@@ -564,7 +564,7 @@ class TLSRPTReporter(VersionedSQLite):
 
     DEFAULT_CONFIG_FILE = "/etc/tlsrpt/reporter.cfg"
     CONFIG_SECTION = "tlsrpt_reporter"
-    ENVIRONMENT_PREFIX = "TLSRPT_"
+    ENVIRONMENT_PREFIX = "TLSRPT_REPORTER_"
 
     def __init__(self, config: ConfigReporter):
         """

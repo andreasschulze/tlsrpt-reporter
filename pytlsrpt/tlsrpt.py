@@ -42,6 +42,7 @@ from pytlsrpt.utility import *
 from pytlsrpt.config import options_from_cmd_env_cfg
 
 # Constants
+DB_Purpose_Suffix = "-devel-2024-10-28"
 TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel-b domain list"
 TLSRPT_TIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 TLSRPT_MAX_READ_FETCHER = 16*1024*1024
@@ -332,7 +333,7 @@ class VersionedSQLite(metaclass=ABCMeta):
 
 class VersionedSQLiteReceiverBase(VersionedSQLite):
     def _db_purpose(self):
-        return "TLSRPT-Receiver-DB"
+        return "TLSRPT-Receiver-DB" + DB_Purpose_Suffix
 
     def _ddl(self):
         return ["CREATE TABLE finalresults(day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure, "
@@ -601,7 +602,7 @@ class TLSRPTReporter(VersionedSQLite):
             self.con.set_trace_callback(print)
 
     def _db_purpose(self):
-        return "TLSRPT-Reporter-DB"
+        return "TLSRPT-Reporter-DB" + DB_Purpose_Suffix
 
     def _ddl(self):
         return ["CREATE TABLE fetchjobs(day, fetcherindex, fetcher, retries, status, nexttry, "

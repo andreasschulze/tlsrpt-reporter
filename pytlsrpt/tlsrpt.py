@@ -193,8 +193,8 @@ options_reporter = {
 }
 
 
-def setup_logging(filename, level):
-    logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s %(lineno)s : %(message)s", level=logging.NOTSET)
+def setup_logging(filename, level, component_name):
+    logging.basicConfig(format="%(asctime)s %(levelname)s " + component_name + " %(module)s %(lineno)s : %(message)s", level=logging.NOTSET)
     logger.addHandler(logging.FileHandler(filename))
     numeric_level = getattr(logging, level.upper(), None)
     if not isinstance(numeric_level, int):
@@ -1183,7 +1183,7 @@ def tlsrpt_receiver_main():
 
     server_address = config.socketname
 
-    setup_logging(config.logfilename, config.log_level)
+    setup_logging(config.logfilename, config.log_level, "tlsrpt_receiver")
 
     logger.info("TLSRPT receiver starting")
     # Make sure the socket does not already exist
@@ -1271,7 +1271,7 @@ def tlsrpt_fetcher_main():
                                                     pospars_fetcher)
     config = ConfigFetcher(**configvars)
 
-    setup_logging(config.logfilename, config.log_level)
+    setup_logging(config.logfilename, config.log_level, "tlsrpt_fetcher")
 
     # Fetcher uses the first configured storage
     url = config.storage.split(",")[0]
@@ -1301,7 +1301,7 @@ def tlsrpt_reporter_main():
                                                     TLSRPTReporter.CONFIG_SECTION, TLSRPTReporter.ENVIRONMENT_PREFIX,
                                                     {})
     config = ConfigReporter(**configvars)
-    setup_logging(config.logfilename, config.log_level)
+    setup_logging(config.logfilename, config.log_level, "tlsrpt_reporter")
 
     logger.info("TLSRPT reporter starting")
 

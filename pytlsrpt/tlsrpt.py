@@ -64,6 +64,8 @@ def signalhandler(signum, frame):
     :return:
     """
     interrupt_write.send(bytes([signum]))
+
+
 signal.signal(signal.SIGINT, signalhandler)
 signal.signal(signal.SIGTERM, signalhandler)
 
@@ -81,11 +83,14 @@ ConfigReceiver = collections.namedtuple("ConfigReceiver",
 
 # Available command line options for the receiver
 options_receiver = {
-    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite", "help": "Storage backend, multiple backends separated by comma"},
+    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite",
+                "help": "Storage backend, multiple backends separated by comma"},
     "socketname": {"type": str, "default": "", "help": "Name of the unix domain socket to receive data"},
     "sockettimeout": {"type": int, "default": 5, "help": "Read timeout for the socket"},
-    "max_uncommited_datagrams": {"type": int, "default": 1000, "help": "Commit after that many datagrams were received"},
-    "retry_commit_datagram_count": {"type": int, "default": 1000, "help": "Retry commit after that many datagrams more were received"},
+    "max_uncommited_datagrams": {"type": int, "default": 1000,
+                                 "help": "Commit after that many datagrams were received"},
+    "retry_commit_datagram_count": {"type": int, "default": 1000,
+                                    "help": "Retry commit after that many datagrams more were received"},
     "logfilename": {"type": str, "default": "/var/log/tlsrpt/receiver.log", "help": "Log file name for receiver"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
     "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": "Filename to save an invalid datagram"},
@@ -101,7 +106,8 @@ ConfigFetcher = collections.namedtuple("ConfigFetcher",
 
 # Available command line options for the fetcher
 options_fetcher = {
-    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite", "help": "Storage backend, multiple backends separated by comma"},
+    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite",
+                "help": "Storage backend, multiple backends separated by comma"},
     "logfilename": {"type": str, "default": "/var/log/tlsrpt/fetcher.log", "help": "Log file name for fetcher"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
 }
@@ -152,29 +158,38 @@ options_reporter = {
     "debug_db": {"type": int, "default": 0, "help": "Enable database debugging"},
     "debug_send_mail_dest": {"type": str, "default": "", "help": "Send all mail reports to this addres instead"},
     "debug_send_http_dest": {"type": str, "default": "", "help": "Post all mail reports to this server instead"},
-    "debug_send_file_dest": {"type": str, "default": "", "help": "Save all mail reports to this directory additionally"},
+    "debug_send_file_dest": {"type": str, "default": "",
+                             "help": "Save all mail reports to this directory additionally"},
     "develmode": {"type": int, "default": 0, "help": "Enable development mode. DO NOT USE ON PRODUCTIVE SYSTEM!"},
     "dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": "Name of database file"},
-    "fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher", "help": "Comma-separated list of fetchers to collect data"},
-    "organization_name": {"type": str, "default": "", "help": "The name of the organization sending out the TLSRPT reports"},
+    "fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher",
+                 "help": "Comma-separated list of fetchers to collect data"},
+    "organization_name": {"type": str, "default": "",
+                          "help": "The name of the organization sending out the TLSRPT reports"},
     "contact_info": {"type": str, "default": "", "help": "The contact information of the sending organization"},
     "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},
     "http_timeout": {"type": int, "default": 10, "help": "Timeout for HTTPS uploads"},
     "sendmail_script": {"type": str, "default": "sendmail -i -t", "help": "sendmail script"},
     "sendmail_timeout": {"type": int, "default": 10, "help": "Timeout for sendmail script"},
-    "spread_out_delivery": {"type": int, "default": 36000, "help": "Time range in seconds to spread out report delivery"},
+    "spread_out_delivery": {"type": int, "default": 36000,
+                            "help": "Time range in seconds to spread out report delivery"},
     "interval_main_loop": {"type": int, "default": 300, "help": "Maximum sleep interval in main loop"},
     "max_receiver_timeout": {"type": int, "default": 10, "help": "Maximum expected receiver timeout"},
     "max_receiver_timediff": {"type": int, "default": 10, "help": "Maximum expected receiver time difference"},
     "max_retries_delivery": {"type": int, "default": 5, "help": "Maximum attempts to deliver a report"},
     "min_wait_delivery": {"type": int, "default": 300, "help": "Minimum time in seconds between two delivery attempts"},
-    "max_wait_delivery": {"type": int, "default": 1800, "help": "Maximum time in seconds between two delivery attempts"},
+    "max_wait_delivery": {"type": int, "default": 1800,
+                          "help": "Maximum time in seconds between two delivery attempts"},
     "max_retries_domainlist": {"type": int, "default": 5, "help": "Maximum attempts to fetch the list of domains"},
-    "min_wait_domainlist": {"type": int, "default": 30, "help": "Minimum time in seconds between two domain list fetch attempts"},
-    "max_wait_domainlist": {"type": int, "default": 300, "help": "Maximum time in seconds between two domain list fetch attempts"},
+    "min_wait_domainlist": {"type": int, "default": 30,
+                            "help": "Minimum time in seconds between two domain list fetch attempts"},
+    "max_wait_domainlist": {"type": int, "default": 300,
+                            "help": "Maximum time in seconds between two domain list fetch attempts"},
     "max_retries_domaindetails": {"type": int, "default": 5, "help": "Maximum attempts to fetch domain details"},
-    "min_wait_domaindetails": {"type": int, "default": 30, "help": "Minimum time in seconds between two domain detail fetch attempts"},
-    "max_wait_domaindetails": {"type": int, "default": 300, "help": "Maximum time in seconds between two domain detail fetch attempts"}
+    "min_wait_domaindetails": {"type": int, "default": 30,
+                               "help": "Minimum time in seconds between two domain detail fetch attempts"},
+    "max_wait_domaindetails": {"type": int, "default": 300,
+                               "help": "Maximum time in seconds between two domain detail fetch attempts"}
 }
 
 
@@ -369,7 +384,8 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
             if self.uncommitted_datagrams == 0:
                 return  # do not perform unneeded commits and do not flood debug logs
             self.con.commit()
-            logger.debug("%s with %d datagrams (%d total)", reason, self.uncommitted_datagrams, self.total_datagrams_read)
+            logger.debug("%s with %d datagrams (%d total)", reason, self.uncommitted_datagrams,
+                         self.total_datagrams_read)
             self.uncommitted_datagrams = 0
         except sqlite3.OperationalError as e:
             logger.error("Failed %s with %d datagrams: %s", reason, self.uncommitted_datagrams, e)

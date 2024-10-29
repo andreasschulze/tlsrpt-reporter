@@ -24,6 +24,7 @@ import json
 import logging
 import random
 from abc import ABCMeta, abstractmethod
+import os
 from pathlib import Path
 from selectors import DefaultSelector, EVENT_READ
 import signal
@@ -38,7 +39,7 @@ import urllib.request
 logger = logging.getLogger(__name__)
 
 from pytlsrpt.utility import *
-from pytlsrpt.config import *
+from pytlsrpt.config import options_from_cmd_env_cfg
 
 # Constants
 TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel-b domain list"

@@ -661,6 +661,8 @@ class TLSRPTReporter(VersionedSQLite):
         yesterday = tlsrpt_utc_date_yesterday()
         if self.cfg.develmode:  # use today´s data during development
             yesterday = tlsrpt_utc_date_now()
+            logger.warning("TLSRPT reporter is running IN DEVELOPER MODE!")
+            logger.warning("DEVELOPER MODE MUST NOT BE USED ON PRODUCTION SYSTEMS!")
         now = tlsrpt_utc_time_now()
         cur.execute("SELECT * FROM fetchjobs WHERE day=?", (yesterday,))
         row = cur.fetchone()
@@ -1303,7 +1305,11 @@ def tlsrpt_reporter_main():
     config = ConfigReporter(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_reporter")
 
-    logger.info("TLSRPT reporter starting")
+    if(config.develmode):
+        logger.warning("TLSRPT reporter starting IN DEVELOPER MODE!")
+        logger.warning("DEVELOPER MODE MUST NOT BE USED ON PRODUCTION SYSTEMS!")
+    else:
+        logger.info("TLSRPT reporter starting")
 
     reporter = TLSRPTReporter(config)
     reporter.run_loop()

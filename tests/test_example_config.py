@@ -2,7 +2,8 @@ import unittest
 import os
 import sys
 
-from pytlsrpt.tlsrpt import ConfigReceiver, ConfigReporter, options_from_cmd_cfg_env, options_receiver, \
+from pytlsrpt.config import options_from_cmd_cfg_env
+from pytlsrpt.tlsrpt import ConfigReceiver, ConfigReporter, options_receiver, \
     options_reporter, TLSRPTReceiver, TLSRPTFetcher, TLSRPTReporter, pospars_fetcher
 
 class MyTestCase(unittest.TestCase):

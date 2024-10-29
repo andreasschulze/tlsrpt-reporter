@@ -194,8 +194,8 @@ options_reporter = {
 
 
 def setup_logging(filename, level, component_name):
-    logging.basicConfig(format="%(asctime)s %(levelname)s " + component_name + " %(module)s %(lineno)s : %(message)s", level=logging.NOTSET)
-    logger.addHandler(logging.FileHandler(filename))
+    logging.basicConfig(format="%(asctime)s " + component_name + " %(levelname)s %(module)s %(lineno)s : %(message)s",
+                        level=logging.NOTSET, handlers=[logging.StreamHandler(), logging.FileHandler(filename)])
     numeric_level = getattr(logging, level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError("Invalid log level: %s" % level)

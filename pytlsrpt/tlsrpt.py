@@ -336,7 +336,7 @@ class VersionedSQLiteReceiverBase(VersionedSQLite):
         return "TLSRPT-Receiver-DB" + DB_Purpose_Suffix
 
     def _ddl(self):
-        return ["CREATE TABLE finalresults(day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure, "
+        return ["CREATE TABLE finalresults(day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure, its datetime default CURRENT_TIMESTAMP,"
                 "PRIMARY KEY(day, domain, tlsrptrecord, policy))",
                 "CREATE TABLE failures(day, domain, tlsrptrecord, policy, reason, cntr, "
                 "PRIMARY KEY(day, domain, tlsrptrecord, policy, reason))",
@@ -606,11 +606,15 @@ class TLSRPTReporter(VersionedSQLite):
 
     def _ddl(self):
         return ["CREATE TABLE fetchjobs(day, fetcherindex, fetcher, retries, status, nexttry, "
+                "its datetime default CURRENT_TIMESTAMP, "
                 "PRIMARY KEY(day, fetcherindex))",
                 "CREATE TABLE reportdata(day, domain, data, fetcher, fetcherindex, retries, status, nexttry, "
+                "its datetime default CURRENT_TIMESTAMP, "
                 "PRIMARY KEY(day, domain, fetcher))",
-                "CREATE TABLE reports(r_id INTEGER PRIMARY KEY ASC, day, domain, uniqid, tlsrptrecord, report)",
+                "CREATE TABLE reports(r_id INTEGER PRIMARY KEY ASC, day, domain, uniqid, tlsrptrecord, report, "
+                "its datetime default CURRENT_TIMESTAMP) ",
                 "CREATE TABLE destinations(destination, d_r_id INTEGER, retries, status, nexttry, "
+                "its datetime default CURRENT_TIMESTAMP, "
                 "PRIMARY KEY(destination, d_r_id), "
                 "FOREIGN KEY(d_r_id) REFERENCES reports(r_id))",
                 "CREATE TABLE dbversion(version, installdate, purpose)",

@@ -1,0 +1,83 @@
+= tlsrpt-receiver(1)
+Boris Lohner
+v0.5.0
+:doctype: manpage
+:manmanual: tlsrpt-receiver
+:mansource: tlsrpt-receiver
+:man-linkstyle: pass:[blue R < >]
+:varpar-configsection: tlsrpt_receiver
+:varpar-environmentprefix: TLSRPT_RECEIVER_
+
+== Name
+
+tlsrpt-receiver - A daemon collecting TLSRPT report data from MTA instances via a unix domain socket.
+
+== Synopsis
+
+*tlsrpt-receiver* [_OPTION_]
+
+== Description
+
+The tlsrpt-receiver collects data from MTAs about successful encrypted delivery of emails or about failures that occured during delivery attempts.
+The data is pre-aggregated and will be retrieved by matching tlsrpt-fetchers.
+
+Tlsrpt-receivers can use different storage back-ends and for each such implementation a matching fetcher implementation must be provided if the data is to be used by a tlsrpt-reporter.
+
+It is also possible to implement storage backends that are not queried by a tlsrpt-reporter.
+Such "storage" back-ends would just collect the data for analyzing purposes, but would not provide measn to retrieve the data again.
+
+
+== Options
+
+*--storage*=_URL_::
+Use data storage described by _URL_.
+This can be a comma-separated list of multiple storage backends.
+The URL schema identifies the storage backend.
+
+*--socketname*=_path_::
+Listen on unix domain socket _path_ for report data.
+
+*--sockettimeout*=_n_::
+Commit accumulated data to the data storage if _n_ seconds have passed since the last commit.
+
+*--max_uncommited_datagrams*=_n_::
+Commit accumulated data to the data storage after _n_ datagrams have been received.
+
+*--retry_commit_datagram_count*=_n_::
+After a commit of the accumulated data has failed, retry after _n_ more datagrams have been received instead of directly after the next datagram.
+If a commit fails due to a timeout, retrying after every datagram might risk running into the same timeout again and again.
+Retrying only every _n_ datagrams reduces the time waiting for such timeouts.
+
+*--dump_path_for_invalid_datagram*=_path_::
+If an invalid datagram is received and this options is set, the invalid datagram will be saved in the file named _path_.
+
+
+include::manpage-common-options.adoc[]
+ 
+ 
+== Exit status
+*0*::
+Success.
+
+*1*::
+Failure.
+Data could not be delivered.
+
+*2*::
+Failure. 
+Data could not be delivered.
+
+*3*::
+Usage error. 
+
+== Examples
+
+Run tlsrpt-receiver with a special config file and ovverride the setting of log-level:
+
+*tlsrpt-receiver --config-file /path/to/config.cfg --log_level info*
+
+== See also
+man:tlsrpt-fetcher[1], man:tlsrpt-reporter[1]
+
+include::manpage-copying.adoc[]
+

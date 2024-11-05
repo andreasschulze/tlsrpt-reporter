@@ -1,0 +1,174 @@
+= tlsrpt-reporter(1)
+Boris Lohner
+v0.5.0
+:production-warning: This option must not be used on production systems!
+:doctype: manpage
+:manmanual: tlsrpt-reporter
+:mansource: tlsrpt-reporter
+:man-linkstyle: pass:[blue R < >]
+:varpar-configsection: tlsrpt_reporter
+:varpar-environmentprefix: TLSRPT_REPORTER_
+
+== Name
+
+tlsrpt-reporter - A daemon to create and deliver TLSRPT reports according to RFC 8460.
+
+== Synopsis
+
+*tlsrpt-fetcher* [_OPTION_]
+
+== Description
+The tlsrpt-reporter is the final component in the TLSRPT framework.
+A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt-receiver which collects and pre-aggregates the data.
+The tlsrpt-fetcher associated with a tlsrpt-receiver transfers the pre-aggregated data to the tlsrpt-reporter.
+The tlsrpt-reporter can retrieve data from multiple tlsrpt-fetchers and aggregates the pre-aggregated data into the final reports.
+Those reports are gzip-compressed and sent out to the destinations as specified in the TLSRPT DNS records of the domains that have received emails from the MTA.
+
+A simple data flow diagram visualizing the interaction of the components looks like this:
+  (MTA)
+    v
+  libtlsrt
+    v
+  tlsrpt-receiver
+    v
+  (storage)
+    v
+  tlsrpt-fetcher
+    v
+  tlsrpt-reporter
+    v
+  (report destination)
+
+== Options
+
+=== Report creation and configuration options
+
+*--contact_info*=_addr_::
+Use _addr_ as contact info in the TLSRPT report according to RFC 8460.
+
+*--organization_name*=_descr_::
+Use _descr_ as name of the organization sending the TLSRPT report according to RFC 8460. 
+
+*--fetchers*=_list_::
+List of fetcher commands to retrieve data.
+Multiple fetcher commands can be given separated by commas.
+
+*--dbname*=_path_::
+Use SQLite data base at location _path_.
+
+*--compression_level*=_n_::
+Use compression level _n_ to gzip-compress the TLSRPT reports.
+
+
+=== Report delivery options
+
+*--spread_out_delivery*=_sec_::
+Spread out the delivery of TLSRPT reports over _sec_ seconds.
+This setting should be set to several hours according to RFC8460, section 4.1.
+For example, set spread_out_delivery to 14400 to spread out the delivery of the reports over four hours.
+
+*--sendmail_script*=_path_::
+Use the script _path_ to send a TLSRPT report via email.
+
+*--sendmail_timeout*=_sec_::
+Set timeout of _sec_ seconds for email requests to deliver reports.
+
+*--http_timeout*=_sec_::
+Set timeout of _sec_ seconds for HTTP POST requests to deliver reports.
+
+*--max_retries_delivery*=_n_::
+Give up after _n_ failed attempts to deliver a report to its destination.
+
+
+*--min_wait_delivery*=_sec_::
+Minimum time to wait before retrying a failed report delivery attempt.
+
+*--max_wait_delivery*=_sec_::
+Maximum time to wait before retrying a failed report delivery attempt.
+
+
+=== Options controlling the interaction with tlsrpt-receivers
+
+*--max_receiver_timediff*=_sec_::
+Log a warning if the receiver clock reported by its fetcher differs by more than _sec_ seconds from the reporter´s clock.
+The reporter starts querying the fetchers _sec_ seconds after the UTC day change, so a clock difference bigger than _sec_ seconds indicates the receiver might not yet been ready to provide the complete data for the previous day.
+
+*--max_receiver_timeout*=_sec_::
+Wait at most _sec_ seconds for a fetcher to finish a request for data from its receiver.
+
+
+*--max_retries_domaindetails*=_n_::
+Give up after _n_ failed attempts to retrieve report details for a domain.
+
+*--min_wait_domaindetails*=_sec_::
+Minimum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt-receiver.
+
+*--max_wait_domaindetails*=_sec_::
+Maximum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt-receiver.
+
+
+*--max_retries_domainlist*=_n_:: 
+Give up after _n_ failed attempts to retrieve the list of domains from a tlsrpt-receiver. 
+
+*--min_wait_domainlist*=_sec_::
+Minimum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt-receiver.
+
+*--max_wait_domainlist*=_sec_::
+Maximum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt-receiver.
+
+
+*--interval_main_loop*=_sec_::
+Wake up an idle main loop even if there are no tasks after _sec_ seconds of inactivity.
+
+
+=== Debug and development options
+
+*--develmode*=_n_::
+Control development mode: 0 turns development mode off, 1 activates development mode.
+In development mode the reporter behaves very different and might send out reports incomplete reports too early or might not send out reports at all!
+{production-warning}  
+
+*--debug_db*=_n_::
+Control database debugging: 0 turns database debugging off, 1 activates logging of database statements.
+
+*--debug_send_file_dest*=_dir_::
+Save reports into directory _dir_ in addition to their delivery via email or HTTP POST requests.
+
+*--debug_send_mail_dest*=_path_::
+Override the email destination to send out reports via email.
+Please note: With this option set, reports to email destinations will not be sent ot the requested destination from the TLSRPT DNS record but to this replacement address instead!
+{production-warning}  
+
+*--debug_send_http_dest*=_path_::
+Override the HTTP POST destination to send out reports via HTTP POST requests.
+Please note: With this option set, reports to HTTP POST destinations will not be sent ot the requested destination from the TLSRPT DNS record but to this replacement URL instead!
+{production-warning}  
+
+include::manpage-common-options.adoc[]
+
+
+== Examples
+
+Retrieve data from a local fetcher with standard configuration and from another local fetcher with a different storage:
+
+*tlsrpt-reporter --fetchers "tlsrpt-fetcher, tlsrpt-fetcher --storage sqlite:///tmp/test.sqlite"*
+
+Retrieve data from a local fetcher and a remote fetcher:
+
+*tlsrpt-reporter --fetchers "tlsrpt-fetcher, ssh user@remote.host tlsrpt-fetcher"*
+
+
+
+== Exit status
+*0*::
+Success.
+
+*1*::
+Failure.
+
+
+== See also
+man:tlsrpt-receiver[1], man:tlsrpt-fetcher[1]
+
+include::manpage-copying.adoc[]
+

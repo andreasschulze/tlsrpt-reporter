@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tlsrpt"
+name = "pytlsrpt"
 version = "0.0.1"
 authors = [
   { name="sys4 AG", email="info@sys4.de" },
@@ -25,9 +25,10 @@ dependencies = [
 test = [
   "tox",
 ]
-# lint = [
-#  "flake8",
-# ]
+dev = [
+  "build==1.2.2",
+  "twine==5.1.1",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/sys4/tlsrpt"

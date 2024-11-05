@@ -23,6 +23,9 @@ import os
 
 
 def _options_from_cmd(options, pospar):
+    """
+    Helper function for options_from_cmd_cfg_env().
+    """
     parser = argparse.ArgumentParser(allow_abbrev=False)
     for k in options:
         parser.add_argument("--" + k, type=options[k]["type"], help=options[k]["help"])
@@ -39,9 +42,12 @@ def _options_from_cmd(options, pospar):
     return opts, pars
 
 
-def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_section: str, envprefix: str, pospar: dict):
+def options_from(order: str, options: dict, default_config_file: str, config_section: str, envprefix: str,
+                 pospar: dict):
     """
-    Get options dict from command line, configuration file, environment variables and defaults.
+    Get options dict from command line, configuration file, environment variables and default in an arbitrary order.
+    :param order: string defining the order of the four sources, e.g. "cefd" where the characters mean:
+     "c": commandline, "e": environment, "f": configfile, "d": defaults
     :param options: dict of option definitions
     :param default_config_file: name of the default config file to read when no --config_file option is given
     :param config_section: name of the section to read from a config file
@@ -74,6 +80,7 @@ def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_sec
     else:
         ocfgitems = {}
 
+    # check for invalid options from config file
     for (k, v) in ocfgitems:
         if v is None or v == "":
             raise SyntaxError("Key " + k + " without value in config file " + config_file)
@@ -96,15 +103,42 @@ def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_sec
 
     # combine results
     result = {}
+    ordermap = {"c": ocmd, "f": ocfg, "e": oenv, "d": odef}
     for k in options:
         tmp = None
-        if tmp is None and k in ocmd:
-            tmp = ocmd[k]
-        if tmp is None and k in ocfg:
-            tmp = ocfg[k]
-        if tmp is None and k in oenv:
-            tmp = oenv[k]
-        if tmp is None and k in odef:
-            tmp = odef[k]
+        for sourcekey in order:
+            src = ordermap[sourcekey]
+            if tmp is None and k in src:
+                tmp = src[k]
         result[k] = tmp
     return result, params
+
+
+def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_section: str, envprefix: str,
+                             pospar: dict):
+    """
+    Get options dict from command line, configuration file, environment variables and defaults in that order.
+    :param options: dict of option definitions
+    :param default_config_file: name of the default config file to read when no --config_file option is given
+    :param config_section: name of the section to read from a config file
+    :param envprefix: prefix for environment variable names
+    :param pospar: options only valid for command line, these are positional parameters
+    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults
+            and the positional parameters from the command line
+    """
+    return options_from("cfed", options, default_config_file, config_section, envprefix, pospar)
+
+
+def options_from_cmd_env_cfg(options: dict, default_config_file: str, config_section: str, envprefix: str,
+                             pospar: dict):
+    """
+    Get options dict from command line, environment variables, configuration file and defaults in that order.
+    :param options: dict of option definitions
+    :param default_config_file: name of the default config file to read when no --config_file option is given
+    :param config_section: name of the section to read from a config file
+    :param envprefix: prefix for environment variable names
+    :param pospar: options only valid for command line, these are positional parameters
+    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults
+            and the positional parameters from the command line
+    """
+    return options_from("cefd", options, default_config_file, config_section, envprefix, pospar)

@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 from pytlsrpt.utility import *
 from pytlsrpt.config import options_from_cmd_env_cfg
+from pytlsrpt import randpool
 
 # Constants
 DB_Purpose_Suffix = "-devel-2024-10-28"
@@ -592,6 +593,7 @@ class TLSRPTReporter(VersionedSQLite):
         self.con = sqlite3.connect(self.dbname)
         self.cur = self.con.cursor()
         self.curtoupdate = self.con.cursor()
+        self.randPoolDelivery = randpool.RandPool(self.cfg.spread_out_delivery)
         self.wakeuptime = tlsrpt_utc_time_now()
         if self._check_database():
             logger.info("Database %s looks OK", self.dbname)
@@ -654,7 +656,7 @@ class TLSRPTReporter(VersionedSQLite):
         return self._wait(self.cfg.min_wait_delivery, self.cfg.max_wait_delivery)
 
     def schedule_report_delivery(self):
-        secs = random.randint(0, self.cfg.spread_out_delivery)
+        secs = self.randPoolDelivery.get()
         return tlsrpt_utc_time_now() + datetime.timedelta(seconds=secs)
 
     def check_day(self):

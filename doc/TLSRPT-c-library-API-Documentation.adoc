@@ -64,7 +64,8 @@ There is no actual connection internally, the socket is a connection-less datagr
 Parameters:::
  struct tlsrpt_connection_t** pcon::  Address of the pointer pointing to the connection object to be closed
 
-The function `tlsrpt_close` closes the socket, resets the destination socket address to all zero bytes, deallocates the `struct tlsrpt_connection_t` and sets *pcon to `NULL`.
+The function `tlsrpt_close` closes the tlsrpt_connetion_t object.
+`tlsrpt_close` closes the socket, resets the destination socket address to all zero bytes, deallocates the `struct tlsrpt_connection_t` and sets *pcon to `NULL`.
 
 
 === Delivery request
@@ -86,15 +87,17 @@ The ressources it allocates must be freed by calling either `tlsrpt_finish_deliv
 Parameters:::
  struct tlsrpt_dr_t** pdr::  Address of the pointer pointing to the delivery request to be finished and sent out
 
-The `tlsrpt_finish_delivery_request` function finishes the delivery request `dr` and if no errors have occured sends it as a datagram to the TLSRPT receiver.
+The `tlsrpt_finish_delivery_request` function finishes the delivery request.
+`tlsrpt_finish_delivery_request` cleans up the ressources used by the delivery request `dr` and if no errors have occured sends it as a datagram to the TLSRPT receiver.
 It deallocates the `struct tlsrpt_dr_t` and sets *pdr to `NULL`.
 
 ==== `tlsrpt_cancel_delivery_request`
 Parameters:::
  struct tlsrpt_dr_t** pdr::  Address of the pointer pointing to the delivery request to be cancelled
 
-The `tlsrpt_cancel_delivery_request` function marks the delivery request as having encountered an internal library "dummy error" `TLSRPT_ERR_TLSRPT_CANCELLED` to prevent it from being sent out.
-It then calls `tlsrpt_finish_delivery_request`, which will do all the clean-up of used ressources.
+The `tlsrpt_cancel_delivery_request` function marks the delivery request as cancelled.
+This is done by an internal library "dummy error" `TLSRPT_ERR_TLSRPT_CANCELLED` which, like all errors, will prevent the delivery request from being sent out.
+The function then calls `tlsrpt_finish_delivery_request`, which will do all the clean-up of used ressources.
 
 
 === Policies
@@ -184,7 +187,9 @@ Parameters:::
  void* (*malloc_function)(size_t size):: A pointer to a function replacing `malloc`
  void (*free_function)(void *ptr):: A pointer to a function replacing `free`
 
-The `tlsrpt_set_malloc_and_free` replaces the malloc implememntation used to allocate the `struct tlsrpt_connection_t` and `struct tlsrpt_dr_t` structures with the functions passed as parameters.
+The `tlsrpt_set_malloc_and_free` function replaces the malloc implementation used within libtlsrpt.
+The replaced malloc is used within libtlsrpt only to allocate the `struct tlsrpt_connection_t` and `struct tlsrpt_dr_t` structures.
+Other malloc calls from within the C standard library are not affected.
 
 NOTE: This function must be called before any of the allocating functions `tlsrpt_open` and `tlsrpt_init_delivery_request` is called! Otherwise one malloc implementation tries to free  a pointer allocated by a different malloc implementation.
 
@@ -225,8 +230,9 @@ I.e. `TLSRPT_ERR_TLSRPT_NESTEDPOLICY` is 10731 instead of 10031 to avoid the err
 Parameters:::
  int errorcode:: the error code returned from any of the tlsrpt C library API functions
 
-The `tlsrpt_error_code_is_internal` function returns 1 if the error code describes an error internal to the TLSRPT library.
-The function returns 0 if the error code is a composed error code combined of the C library function and the call site within the TLSRPT library and the errno value resulting from the failed call into the C library.
+The `tlsrpt_error_code_is_internal` function returns if the error code is internal to the TLSRPT library.
+`tlsrpt_error_code_is_internal` returns 1 if the error code describes an error internal to the TLSRPT library.
+`tlsrpt_error_code_is_internal` returns 0 if the error code is a composed error code combined of the C library function and the call site within the TLSRPT library and the errno value resulting from the failed call into the C library.
 
 ==== `tlsrpt_strerror`
 Parameters:::

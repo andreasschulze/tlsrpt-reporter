@@ -27,6 +27,8 @@
 
 #define SOCKET_NAME "/tmp/tlsrpt-receiver.socket"
 
+#define SEND_MALFORMED_UTF8 0
+
 tlsrpt_connection_t* con=NULL;
 
 //compare global socket vs individual sockets
@@ -37,6 +39,11 @@ tlsrpt_connection_t* con=NULL;
 #define SOCKOPENINNER
 #define SOCKCLOSEINNER
 #endif
+
+const char* tlsrptrecs[]={"v=TLSRPTv1;rua=mailto:reports@example.com",
+			  "v=TLSRPTv1; rua=mailto:tlsrpt@admin.example.com,https://reportbot.example.com:12345/tlsrpt;"};
+//			  "v=TLSRPTv1; rua=mailto:tlsrpt@admin.example.com,mailto:hostmaster@example.com,https://reportbot.example.com:12345/tlsrpt;"
+
 
 #define CHECK if(res!=0) fprintf(stderr, "RESULT AT LINE %d IS %d : %s: %s\n" ,__LINE__, res, tlsrpt_strerror(res), strerror(tlsrpt_errno_from_error_code(res)));
 //#define CHECK 
@@ -61,24 +68,33 @@ int main(int argc, char *argv[])
   int donepart=0;
   int parts=0;
   int domains=1000;
+  domains=10;
 
   rate.start();
   while(runs==0 || i<runs) {
     dbgnumber=i%16;
     char domain[1024];
     snprintf(domain,1023,"test-%d.example.com",i%domains);
-    const char* _reason="Test with unusual characters: °!\"§$%&/()=?`'´\\<|>äöüÄÖÜß";
+    const char* _reason="Test with unusual characters: °äöüÄÖÜßJSONTEST!\"§$%&/()=?`'´\\<|>\\\t\b\f\n\x03\x04\x05";
+    size_t rlen=strlen(_reason);
 #define DEBUGSIZE 1024
     char reason[DEBUGSIZE];
     //const char* reason="Test with normal characters: abcdefghijklmnop";
     memset(reason,0,DEBUGSIZE);
-    strncpy(reason, _reason, i % (DEBUGSIZE-1));
-
+    if(0) {
+    if(SEND_MALFORMED_UTF8) {
+      strncpy(reason, _reason, i % (DEBUGSIZE-1));
+    } else {
+      unsigned int copy = i % (DEBUGSIZE-1);
+      while(copy<=rlen && copy>0 && ((unsigned char)_reason[copy])>=128 && ((unsigned char)_reason[copy])< 192) --copy;
+      strncpy(reason, _reason, copy);
+    }
+    }
     tlsrpt_final_result_t polresult=tlsrpt_final_result_t((i/16)%2);
 
     struct tlsrpt_dr_t *dr=NULL;
-    SOCKOPENINNER
-      res = tlsrpt_init_delivery_request(&dr, con, domain, "v=TLSRPTv1;rua=mailto:reports@example.com");
+    SOCKOPENINNER;
+    res = tlsrpt_init_delivery_request(&dr, con, domain, tlsrptrecs[((i%7==0)&&((i%1000)%7==0))?0:1]);
     CHECK;
 
     int pol=forcepol>=0?forcepol:(i+(i%16==0?1:0));
@@ -90,6 +106,7 @@ int main(int argc, char *argv[])
       res = tlsrpt_add_policy_string(dr,"version: STSv1");
       res = tlsrpt_add_policy_string(dr,"mode: testing");
       res = tlsrpt_add_policy_string(dr,"mx: *.mail.company-y.example");
+      res = tlsrpt_add_policy_string(dr,reason);
       res = tlsrpt_add_policy_string(dr,"max_age: 86400");
       CHECK;
       res = tlsrpt_add_mx_host_pattern(dr,"*.mail.company-y.example");
@@ -158,7 +175,7 @@ int main(int argc, char *argv[])
 	donepart=0;
       */
     }
-    SOCKCLOSEINNER
+    SOCKCLOSEINNER;
 
     if(i%1000==0) {
       rate.stop();

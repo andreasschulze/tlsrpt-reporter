@@ -15,4 +15,4 @@ ${TARGETS:%.3=%.adoc} : interim
 	asciidoctor -b manpage $<
 
 clean:
-	rm ${TARGETS}
+	rm ${TARGETS} tlsrpt_*.adoc

@@ -155,7 +155,7 @@ Retrieve data from a local fetcher with standard configuration and from another 
 
 Retrieve data from a local fetcher and a remote fetcher:
 
-*tlsrpt-reporter --fetchers "tlsrpt-fetcher, ssh user@remote.host tlsrpt-fetcher"*
+*tlsrpt-reporter --fetchers "tlsrpt-fetcher, ssh user@remote tlsrpt-fetcher"*
 
 
 

@@ -24,7 +24,7 @@ tlsrpt_strerror \- returns a static string describing the error
 .sp
 #include <tlsrpt.h>
 .sp
-int tlsrpt_strerror(int errorcode)
+const char* tlsrpt_strerror(int errorcode)
 .SH "DESCRIPTION"
 .sp
 The \f[CR]tlsrpt_strerror\fP function returns a static string describing the error.
@@ -33,11 +33,10 @@ The actual error has to be retrieved from the C library via the \f[CR]strerror\f
 The errno value to be passed into the \f[CR]strerror\fP function must be extracted from the error code via the \f[CR]tlsrpt_errno_from_error_code\fP function.
 .SH "RETURN VALUE"
 .sp
-The tlsrpt_strerror function returns 0 on success and a combined error code on failure.
-The combined error code can be analyzed with the \fItlsrpt_strerror\fP function.
+The tlsrpt_strerror function returns a static string describing the error.
 .SH "SEE ALSO"
 .sp
-\fBtlsrpt_strerror\fP(3), \fBtlsrpt_error_code_is_internal\fP(3)
+\fBtlsrpt_error_code_is_internal\fP(3), \fBtlsrpt_errno_from_error_code\fP(3)
 .SH "AUTHOR(S)"
 .sp
 \fBBoris Lohner\fP

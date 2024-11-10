@@ -31,8 +31,7 @@ The \f[CR]tlsrpt_get_socket\fP function returns the socket file descriptor used 
 This can be useful to set socket options.
 .SH "RETURN VALUE"
 .sp
-The tlsrpt_get_socket function returns 0 on success and a combined error code on failure.
-The combined error code can be analyzed with the \fItlsrpt_strerror\fP function.
+The tlsrpt_get_socket function returns the socket file descriptor used within a tlsrpt_connection_t.
 .SH "SEE ALSO"
 .sp
 \fBtlsrpt_strerror\fP(3), \fBtlsrpt_error_code_is_internal\fP(3)

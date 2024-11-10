@@ -9,7 +9,7 @@ all: ${TARGETS}
 interim : ../TLSRPT-c-library-API-Documentation.adoc
 	python3 ../../tools/manpage_generator/library_manpage_generator.py ../TLSRPT-c-library-API-Documentation.adoc .
 
-${TARGETS} : interim
+${TARGETS:%.3=%.adoc} : interim
 
 %.1 %.3 : %.adoc manpage-*.adoc Makefile
 	asciidoctor -b manpage $<

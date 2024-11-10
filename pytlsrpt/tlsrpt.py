@@ -933,6 +933,7 @@ class TLSRPTReporter(VersionedSQLite):
         uniqid = 0
         for (uniqid,) in cur:
             break
+        report["report-id"] = self.report_id(day, uniqid, dom)
         cur.execute("INSERT INTO reports (day, domain, uniqid, report) VALUES(?,?,?,?)",
                     (day, dom, uniqid, json.dumps(report)))
         r_id = cur.lastrowid
@@ -958,20 +959,16 @@ class TLSRPTReporter(VersionedSQLite):
                     reports[tlsrptrecord] = {}
                 self.aggregate_report_from_data(reports[tlsrptrecord], j[tlsrptrecord])
 
-        report_index = 0
         for tlsrptrecord in reports:
-            report_index += 1
             rawreport = reports[tlsrptrecord]
             report_domain = dom
             report_start_datetime = tlsrpt_report_start_datetime(day)
             report_end_datetime = tlsrpt_report_end_datetime(day)
-            report_id = report_start_datetime + "_idx" + str(report_index) + "_" + report_domain
             report = {"organization-name": self.cfg.organization_name,
                       "date-range": {
                           "start-datetime": report_start_datetime,
                           "end-datetime": report_end_datetime},
                       "contact-info": self.cfg.contact_info,
-                      "report-id": report_id,
                       }
             self.render_report(day, dom, tlsrptrecord, rawreport, report)
         self.con.commit()
@@ -1012,7 +1009,7 @@ class TLSRPTReporter(VersionedSQLite):
 
         # Call send script
         msg = EmailReport()
-        msg['Subject'] = self.create_email_subject(dom, d_r_id)
+        msg['Subject'] = self.create_email_subject(dom, self.report_id(day, uniqid, dom))
         msg['From'] = self.cfg.contact_info
         msg['To'] = dest
         msg.add_header("TLS-Report-Domain", dom)
@@ -1171,8 +1168,19 @@ class TLSRPTReporter(VersionedSQLite):
                     logger.info("Done")
                     return 0
 
-    def create_email_subject(self, dom, d_r_id):
-        return "Report Domain: " + dom + " Submitter: "+self.cfg.organization_name + " Report-ID: " + str(d_r_id)
+    def report_id(self, day, report_index, report_domain):
+        """
+        Creates a report id
+        :param report_start_datetime: Start time of the report
+        :param report_index: Running index of this report in case there might be multiple reports on the same day
+        :param report_domain: Domain this report is for
+        :return: a report id to be used in the report_id JOSN field and in the email subject
+        """
+        return tlsrpt_report_start_datetime(day) + "_idx" + str(report_index) + "_" + report_domain
+
+    def create_email_subject(self, dom, report_id):
+        return "Report Domain: " + dom + " Submitter: " + self.cfg.organization_name + \
+               " Report-ID: <" + str(report_id) + "@" + self.cfg.organization_name + ">"
 
     def create_report_filename(self, dom, day, nr):
         start = tlsrpt_report_start_timestamp(day)

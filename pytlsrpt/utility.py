@@ -65,6 +65,7 @@ def tlsrpt_report_start_timestamp(day):
     :return: Timestamp of the report start as unix timestamp
     """
     day = datetime.datetime.fromisoformat(day)
+    day = day.replace(tzinfo=datetime.timezone.utc)
     return int(day.timestamp())
 
 

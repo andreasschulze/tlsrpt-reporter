@@ -19,6 +19,7 @@
 
 import collections
 import email.message
+import email.utils
 import gzip
 import json
 import logging
@@ -1015,6 +1016,7 @@ class TLSRPTReporter(VersionedSQLite):
         msg['Subject'] = self.create_email_subject(dom, d_r_id)
         msg['From'] = self.cfg.contact_info
         msg['To'] = dest
+        msg.add_header("Message-ID", email.utils.make_msgid(domain=msg["From"].groups[0].addresses[0].domain))
         msg.add_header("TLS-Report-Domain", dom)
         msg.add_header("TLS-Report-Submitter", self.cfg.organization_name)
 

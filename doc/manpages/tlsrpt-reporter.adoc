@@ -49,6 +49,9 @@ Use _addr_ as contact info in the TLSRPT report according to RFC 8460.
 *--organization_name*=_descr_::
 Use _descr_ as name of the organization sending the TLSRPT report according to RFC 8460. 
 
+*--sender_address*=_email_::
+Use _email_ as "From:" address when sending reports via email.
+
 *--fetchers*=_list_::
 List of fetcher commands to retrieve data.
 Multiple fetcher commands can be given separated by commas.

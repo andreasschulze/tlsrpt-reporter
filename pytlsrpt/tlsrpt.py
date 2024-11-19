@@ -51,9 +51,9 @@ TLSRPT_MAX_READ_FETCHER = 16*1024*1024
 TLSRPT_MAX_READ_RECEIVER = 16*1024*1024
 
 # Exit codes
-EXIT_DB_SETUP_FAILURE = 1
-EXIT_WRONG_DB_VERSION = 2
-EXIT_USAGE = 3
+EXIT_USAGE = 2  # argparse default
+EXIT_DB_SETUP_FAILURE = 3
+EXIT_WRONG_DB_VERSION = 4
 
 # Keyboard interrupt and signal handling
 interrupt_read, interrupt_write = socket.socketpair()
@@ -118,8 +118,8 @@ options_fetcher = {
 
 # Positional parameters for the fetcher
 pospars_fetcher = {
-    "day": {"type": str, "help": "Day to fetch data for"},
-    "domain": {"type": str, "help": "Domain to fetch data for, if omitted fetch list of domains"},
+    "day": {"type": str, "nargs": 1, "help": "Day to fetch data for"},
+    "domain": {"type": str, "nargs": "?", "help": "Domain to fetch data for, if omitted fetch list of domains"},
 }
 
 
@@ -1298,16 +1298,20 @@ def tlsrpt_fetcher_main():
     try:
         fetcher = TLSRPTFetcher.factory(url, config)
     except Exception as e:
-        logger.error("Can not create fetcher from '%s': %s", url, str(e))
+        logger.error("Can not create fetcher from storage URL '%s': %s", url, str(e))
         sys.exit(EXIT_USAGE)
-
-    if params["day"] is None or params["day"] == "":
-        print("Usage: %s day [domain]", file=sys.stderr)
+    if len(params["day"]) != 1:
+        logger.error("Expected exactly one argument for parameter 'day' but got %s", len(params["day"]))
         sys.exit(EXIT_USAGE)
-    if params["domain"] is None:
-        fetcher.fetch_domain_list(params["day"])
+    day = params["day"][0]
+    if day is None or day == "":
+        logger.error("Invalid value for parameter 'day': '%s'", day)
+        sys.exit(EXIT_USAGE)
+    domain = params["domain"]
+    if domain is None:
+        fetcher.fetch_domain_list(day)
     else:
-        fetcher.fetch_domain_details(params["day"], params["domain"])
+        fetcher.fetch_domain_details(day, domain)
 
 
 def tlsrpt_reporter_main():

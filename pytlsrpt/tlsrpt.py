@@ -135,6 +135,7 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
                                          'fetchers',
                                          'organization_name',
                                          'contact_info',
+                                         'sender_address',
                                          'compression_level',
                                          'http_timeout',
                                          'sendmail_script',
@@ -170,6 +171,7 @@ options_reporter = {
     "organization_name": {"type": str, "default": "",
                           "help": "The name of the organization sending out the TLSRPT reports"},
     "contact_info": {"type": str, "default": "", "help": "The contact information of the sending organization"},
+    "sender_address": {"type": str, "default": "", "help": "The From: address to send the report email from"},
     "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},
     "http_timeout": {"type": int, "default": 10, "help": "Timeout for HTTPS uploads"},
     "sendmail_script": {"type": str, "default": "sendmail -i -t", "help": "sendmail script"},
@@ -1011,7 +1013,7 @@ class TLSRPTReporter(VersionedSQLite):
         # Call send script
         msg = EmailReport()
         msg['Subject'] = self.create_email_subject(dom, self.report_id(day, uniqid, dom))
-        msg['From'] = self.cfg.contact_info
+        msg['From'] = self.cfg.sender_address
         msg['To'] = dest
         msg.add_header("Message-ID", email.utils.make_msgid(domain=msg["From"].groups[0].addresses[0].domain))
         msg.add_header("TLS-Report-Domain", dom)

@@ -86,7 +86,7 @@ class MyTestCase(unittest.TestCase):
 
     def do_test(self, expect, co, fo, eo):
         self.reset(co, fo, eo)
-        (tmp, pars) = config.options_from_cmd_cfg_env(options_test, "/etc/none", self.section, self.envprefix, {})
+        (tmp, pars, _) = config.options_from_cmd_cfg_env(options_test, "/etc/none", self.section, self.envprefix, {})
         cres = ConfigTest(**tmp)
 
         for k in options_test:

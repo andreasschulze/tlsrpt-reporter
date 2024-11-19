@@ -25,10 +25,8 @@ class MyTestCase(unittest.TestCase):
     def test_email_headers(self):
         """
         Test if setting of email headers needed for a TLSRPT report works
-        :return:
         """
         msg = tlsrpt.EmailReport()
-        #msg['Subject'] = self.create_email_subject(dom, self.report_id(day, uniqid, dom))
         msg['From'] = "sender@s.example.com"
         msg['To'] = "recipient@r.example.com"
         message_id = email.utils.make_msgid(domain=msg["From"].groups[0].addresses[0].domain)

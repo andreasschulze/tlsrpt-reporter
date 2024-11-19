@@ -30,7 +30,7 @@ def _options_from_cmd(options, pospar):
     for k in options:
         parser.add_argument("--" + k, type=options[k]["type"], help=options[k]["help"])
     for k in pospar:
-        parser.add_argument(k, type=pospar[k]["type"], help=pospar[k]["help"], nargs="?")
+        parser.add_argument(k, type=pospar[k]["type"], help=pospar[k]["help"], nargs=pospar[k]["nargs"])
     tmp = parser.parse_args()
     o = vars(tmp)  # extract dict from Namespace object
     opts = {}  # configuration options

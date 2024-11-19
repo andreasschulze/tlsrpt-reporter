@@ -31,6 +31,8 @@ class MyTestCase(unittest.TestCase):
     """
 
     def setUp(self):
+        sys.argv.clear()
+        sys.argv.append("programname")
         self.example_filename = os.path.join(os.path.dirname(__file__), "..", "pytlsrpt" , "example.cfg")
         sys.argv.append("--config_file")
         sys.argv.append(self.example_filename)
@@ -45,6 +47,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(config.logfilename, "/tmp/tlsrpt-receiver.log")
 
     def test_fetcher_config(self):
+        sys.argv.append("2000-01-01")  # add required parameter 'day'
         (configvars, params) = options_from_cmd_cfg_env(options_receiver, TLSRPTFetcher.DEFAULT_CONFIG_FILE,
                                                         TLSRPTFetcher.CONFIG_SECTION,
                                                         TLSRPTFetcher.ENVIRONMENT_PREFIX,

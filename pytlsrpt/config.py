@@ -53,8 +53,8 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
     :param config_section: name of the section to read from a config file
     :param envprefix: prefix for environment variable names
     :param pospar: options only valid for command line, these are positional parameters
-    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults
-            and the positional parameters from the command line
+    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults,
+             the positional parameters from the command line and the sources where the options originated
     """
     # ocmd: options from command line
     # Add a parameter to specify a config file on the command line
@@ -103,6 +103,7 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
 
     # combine results
     result = {}
+    sources = {}
     ordermap = {"c": ocmd, "f": ocfg, "e": oenv, "d": odef}
     for k in options:
         tmp = None
@@ -110,8 +111,9 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
             src = ordermap[sourcekey]
             if tmp is None and k in src:
                 tmp = src[k]
+                sources[k] = sourcekey
         result[k] = tmp
-    return result, params
+    return result, params, sources
 
 
 def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_section: str, envprefix: str,
@@ -123,8 +125,8 @@ def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_sec
     :param config_section: name of the section to read from a config file
     :param envprefix: prefix for environment variable names
     :param pospar: options only valid for command line, these are positional parameters
-    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults
-            and the positional parameters from the command line
+    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults,
+             the positional parameters from the command line and the sources where the options originated
     """
     return options_from("cfed", options, default_config_file, config_section, envprefix, pospar)
 
@@ -138,7 +140,7 @@ def options_from_cmd_env_cfg(options: dict, default_config_file: str, config_sec
     :param config_section: name of the section to read from a config file
     :param envprefix: prefix for environment variable names
     :param pospar: options only valid for command line, these are positional parameters
-    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults
-            and the positional parameters from the command line
+    :return: tuple of dict of all options and their values from command line, config file, environment or the defaults,
+             the positional parameters from the command line and the sources where the options originated
     """
     return options_from("cefd", options, default_config_file, config_section, envprefix, pospar)

@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 from pytlsrpt.utility import *
 from pytlsrpt.config import options_from_cmd_env_cfg
 from pytlsrpt import randpool
+from pytlsrpt import plugins
 
 # Constants
 DB_Purpose_Suffix = "-devel-2024-10-28"
@@ -248,12 +249,8 @@ class TLSRPTReceiver(metaclass=ABCMeta):
 
     @staticmethod
     def factory(url: str, config: ConfigReceiver):
-        if url.startswith("sqlite:"):
-            return TLSRPTReceiverSQLite(url, config)
-        elif url.startswith("dummy:"):
-            return DummyReceiver(url, config)
-        else:
-            raise SyntaxError(f"Unsupported receiver URL: '{url}'")
+        cls = plugins.get_plugin("tlsrpt.receiver", url)
+        return cls(url, config)
 
 
 class DummyReceiver(TLSRPTReceiver):
@@ -490,10 +487,10 @@ class TLSRPTFetcher(metaclass=ABCMeta):
 
     @staticmethod
     def factory(url: str, config: ConfigFetcher):
-        if url.startswith("sqlite:"):
+        if url.startswith("sqlite:"):  # fast path for default implementation
             return TLSRPTFetcherSQLite(url, config)
-        else:
-            raise SyntaxError(f"Unsupported receiver URL: '{url}'")
+        cls = plugins.get_plugin("tlsrpt.fetcher", url)
+        return cls(url, config)
 
 
 class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):

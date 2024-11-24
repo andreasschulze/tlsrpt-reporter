@@ -39,6 +39,13 @@ tlsrpt-fetcher = "pytlsrpt.tlsrpt:tlsrpt_fetcher_main"
 tlsrpt-receiver = "pytlsrpt.tlsrpt:tlsrpt_receiver_main"
 tlsrpt-reporter = "pytlsrpt.tlsrpt:tlsrpt_reporter_main"
 
+[project.entry-points."tlsrpt.receiver"]
+sqlite = "pytlsrpt.tlsrpt:TLSRPTReceiverSQLite"
+dummy = "pytlsrpt.tlsrpt:DummyReceiver"
+
+[project.entry-points."tlsrpt.fetcher"]
+sqlite = "pytlsrpt.tlsrpt:TLSRPTFetcherSQLite"
+
 [tool.hatch.build]
 only-packages = false
 

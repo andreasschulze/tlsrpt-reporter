@@ -19,6 +19,7 @@
 
 from importlib.metadata import entry_points
 import urllib.parse
+import sys
 
 class NoImplementationException(Exception):
     pass
@@ -33,7 +34,10 @@ def get_plugin(group, url):
     """
     parsed_url = urllib.parse.urlparse(url)
     all_eps = entry_points()
-    eps = all_eps[group]
+    if sys.version_info[:2] >= (3, 10):
+        eps = all_eps.select(group=group)
+    else:
+        eps = all_eps[group]
     for ep in eps:
         if ep.name == parsed_url.scheme:
             return ep.load()

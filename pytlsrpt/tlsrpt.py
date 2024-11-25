@@ -135,6 +135,7 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
                                          'debug_send_http_dest',
                                          'debug_send_file_dest',
                                          'dbname',
+                                         'keep_days',
                                          'fetchers',
                                          'organization_name',
                                          'contact_info',
@@ -163,6 +164,7 @@ options_reporter = {
     "logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": "Log file name for reporter"},
     "log_level": {"type": str, "default": "warn", "help": "Log level"},
     "debug_db": {"type": int, "default": 0, "help": "Enable database debugging"},
+    "keep_days": {"type": int, "default": 10, "help": "Days to keep old data"},
     "debug_send_mail_dest": {"type": str, "default": "", "help": "Send all mail reports to this addres instead"},
     "debug_send_http_dest": {"type": str, "default": "", "help": "Post all mail reports to this server instead"},
     "debug_send_file_dest": {"type": str, "default": "",
@@ -730,6 +732,31 @@ class TLSRPTReporter(VersionedSQLite):
         secs = self.randPoolDelivery.get()
         return tlsrpt_utc_time_now() + datetime.timedelta(seconds=secs)
 
+    def db_clean_up(self, now):
+        """
+        Delete old data from database
+        :param now: the current UTC time
+        """
+        limit = self.cfg.keep_days
+        cur = self.con.cursor()
+        cur.execute("DELETE FROM fetchjobs WHERE julianday(?)-julianday(day)>?", (now, limit))
+        d = cur.rowcount
+        if d>0:
+            logger.info("Deleted %d old fetchjobs", d)
+        cur.execute("DELETE FROM reportdata WHERE julianday(?)-julianday(day)>?", (now, limit))
+        d = cur.rowcount
+        if d>0:
+            logger.info("Deleted %d old reportdata", d)
+        cur.execute("DELETE FROM destinations WHERE d_r_id in (SELECT r_id FROM reports "
+                    "WHERE julianday(?)-julianday(day)>?)", (now, limit))
+        d = cur.rowcount
+        if d>0:
+            logger.info("Deleted %d old destinations", d)
+        cur.execute("DELETE FROM reports WHERE julianday(?)-julianday(day)>?", (now, limit))
+        d = cur.rowcount
+        if d>0:
+            logger.info("Deleted %d old reports", d)
+
     def check_day(self):
         """
         Check if a new day has started and create jobs for the new day to be processed in the next steps
@@ -738,6 +765,7 @@ class TLSRPTReporter(VersionedSQLite):
         cur = self.con.cursor()
         yesterday = tlsrpt_utc_date_yesterday()
         now = tlsrpt_utc_time_now()
+        self.db_clean_up(now)
         cur.execute("SELECT * FROM fetchjobs WHERE day=?", (yesterday,))
         row = cur.fetchone()
         if row is not None:  # Jobs already exist

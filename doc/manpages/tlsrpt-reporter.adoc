@@ -62,6 +62,8 @@ Use SQLite data base at location _path_.
 *--compression_level*=_n_::
 Use compression level _n_ to gzip-compress the TLSRPT reports.
 
+*--keep_days*=_n_::
+Keep old data for _n_ days before deleting from the database. 
 
 === Report delivery options
 

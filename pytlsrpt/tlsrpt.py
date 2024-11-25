@@ -1198,7 +1198,7 @@ class TLSRPTReporter(VersionedSQLite):
             self.wakeuptime = t
         else:
             logger.debug("Not changing wake up time from %s to %s", self.wakeuptime, t)
-        return self.wakeuptime
+        return t
 
     def run_loop(self):
         """

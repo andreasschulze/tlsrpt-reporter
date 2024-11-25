@@ -1073,6 +1073,7 @@ class TLSRPTReporter(VersionedSQLite):
         msg.add_header("Message-ID", email.utils.make_msgid(domain=msg["From"].groups[0].addresses[0].domain))
         msg.add_header("TLS-Report-Domain", dom)
         msg.add_header("TLS-Report-Submitter", self.cfg.organization_name)
+        msg.add_header("TLS-Required", "No")  # use RFC 8689 header
 
         nr = uniqid
         n = self.create_report_filename(dom, day, nr)

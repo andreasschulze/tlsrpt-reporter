@@ -1167,12 +1167,13 @@ class TLSRPTReporter(VersionedSQLite):
         """
         Send out the finished reports.
         """
+        now = tlsrpt_utc_time_now()
         logger.debug("Send out reports")
         cur = self.con.cursor()  # cursor for selects
         curu = self.con.cursor()  # cursor for updates
         cur.execute(
             "SELECT destination, d_r_id, uniqid, report, domain, day, retries FROM destinations "
-            "LEFT JOIN reports on r_id=d_r_id WHERE destinations.status IS NULL")
+            "LEFT JOIN reports on r_id=d_r_id WHERE destinations.status IS NULL and nexttry<?", (now,))
         for (destination, d_r_id, uniqid, report, dom, day, retries) in cur:
             logger.info("Report delivery %d for domain %s succeeded in run %d", d_r_id, dom, retries)
             if self.send_out_report(day, dom, d_r_id, uniqid, destination, report):

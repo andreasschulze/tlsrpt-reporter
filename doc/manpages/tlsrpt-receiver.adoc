@@ -48,6 +48,10 @@ After a commit of the accumulated data has failed, retry after _n_ more datagram
 If a commit fails due to a timeout, retrying after every datagram might risk running into the same timeout again and again.
 Retrying only every _n_ datagrams reduces the time waiting for such timeouts.
 
+*--daily_rollover_script*=_script_::
+If this option is set, _script_ will be run after midnight UTC has passed and maintenance steps were performed.
+This can be useful to push the receiver database to some other place in setups where a remote TLSRPT-receiver cannot be easily queried from the TLSRPT-reporter but the TLSRPT-receiver can push data to the TLSRPT-reporter.
+
 *--dump_path_for_invalid_datagram*=_path_::
 If an invalid datagram is received and this options is set, the invalid datagram will be saved in the file named _path_.
 

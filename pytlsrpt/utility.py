@@ -40,6 +40,15 @@ def parse_tlsrpt_record(tlsrpt_record):
     return ruas
 
 
+def make_yesterday_dbname(dbname):
+    """
+    Create name for the database to store data of the previous day
+    :param dbname: name of todays database
+    :return: name of yesterdays database
+    """
+    return dbname+".yesterday"
+
+
 def tlsrpt_report_start_datetime(day):
     """
     Return start time of report for a specific day.

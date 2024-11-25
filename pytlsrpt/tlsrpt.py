@@ -134,7 +134,6 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
                                          'debug_send_mail_dest',
                                          'debug_send_http_dest',
                                          'debug_send_file_dest',
-                                         'develmode',
                                          'dbname',
                                          'fetchers',
                                          'organization_name',
@@ -168,7 +167,6 @@ options_reporter = {
     "debug_send_http_dest": {"type": str, "default": "", "help": "Post all mail reports to this server instead"},
     "debug_send_file_dest": {"type": str, "default": "",
                              "help": "Save all mail reports to this directory additionally"},
-    "develmode": {"type": int, "default": 0, "help": "Enable development mode. DO NOT USE ON PRODUCTIVE SYSTEM!"},
     "dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": "Name of database file"},
     "fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher",
                  "help": "Comma-separated list of fetchers to collect data"},
@@ -730,10 +728,6 @@ class TLSRPTReporter(VersionedSQLite):
         logger.debug("Check day")
         cur = self.con.cursor()
         yesterday = tlsrpt_utc_date_yesterday()
-        if self.cfg.develmode:  # use today´s data during development
-            yesterday = tlsrpt_utc_date_now()
-            logger.warning("TLSRPT reporter is running IN DEVELOPER MODE!")
-            logger.warning("DEVELOPER MODE MUST NOT BE USED ON PRODUCTION SYSTEMS!")
         now = tlsrpt_utc_time_now()
         cur.execute("SELECT * FROM fetchjobs WHERE day=?", (yesterday,))
         row = cur.fetchone()
@@ -1411,11 +1405,7 @@ def tlsrpt_reporter_main():
     setup_logging(config.logfilename, config.log_level, "tlsrpt_reporter")
     log_config_info(logger, configvars, sources)
 
-    if(config.develmode):
-        logger.warning("TLSRPT reporter starting IN DEVELOPER MODE!")
-        logger.warning("DEVELOPER MODE MUST NOT BE USED ON PRODUCTION SYSTEMS!")
-    else:
-        logger.info("TLSRPT reporter starting")
+    logger.info("TLSRPT reporter starting")
 
     reporter = TLSRPTReporter(config)
     reporter.run_loop()

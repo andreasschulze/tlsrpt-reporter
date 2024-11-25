@@ -46,7 +46,7 @@ from pytlsrpt import plugins
 
 # Constants
 DB_Purpose_Suffix = "-devel-2024-10-28"
-TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel-b domain list"
+TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel-c domain list"
 TLSRPT_TIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 TLSRPT_MAX_READ_FETCHER = 16*1024*1024
 TLSRPT_MAX_READ_RECEIVER = 16*1024*1024
@@ -352,6 +352,7 @@ class VersionedSQLiteReceiverBase(VersionedSQLite):
                 "PRIMARY KEY(day, domain, tlsrptrecord, policy))",
                 "CREATE TABLE failures(day, domain, tlsrptrecord, policy, reason, cntr, "
                 "PRIMARY KEY(day, domain, tlsrptrecord, policy, reason))",
+                "CREATE TABLE daystatus(daycomplete, its datetime default CURRENT_TIMESTAMP, PRIMARY KEY(daycomplete))",
                 "CREATE TABLE dbversion(version, installdate, purpose)",
                 "INSERT INTO dbversion(version, installdate, purpose) "
                 " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'),'"+self._db_purpose()+"')"]
@@ -402,6 +403,8 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
             logger.debug("Updated %d rows in failuredetails", self.cur.rowcount)
             self.con.commit()
         self._db_commit(commit_message)
+        self.cur.execute("INSERT INTO daystatus (daycomplete)  VALUES(?)", (yesterday, ))
+        self.con.commit()
         self.cur.close()
         self.con.close()
         yesterdaydbname = make_yesterday_dbname(self.dbname)
@@ -590,9 +593,15 @@ class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):
         print(TLSRPT_FETCHER_VERSION_STRING_V1)
         # line 2: current time so fetching can be rescheduled to account for clock offset, or warn about too big delay
         print(tlsrpt_utc_time_now().strftime(TLSRPT_TIMEFORMAT))
+        # line 3: available day
+        dlcursor = self.con.cursor()
+        dlcursor.execute("SELECT daycomplete FROM daystatus")
+        alldata = dlcursor.fetchall()
+        for row in alldata:
+            print(row[0])
+            break
         # protocol header finished
         # send domains
-        dlcursor = self.con.cursor()
         dlcursor.execute("SELECT DISTINCT domain FROM finalresults WHERE day=?", (day,))
         alldata = dlcursor.fetchall()
         dlcursor.close()
@@ -794,7 +803,12 @@ class TLSRPTReporter(VersionedSQLite):
         if abs(dt.total_seconds()) > self.cfg.max_receiver_timediff:
             logger.warning("Receiver time %s and reporter time %s differ more then %s on fetcher %d %s", receiver_time,
                            reporter_time, self.cfg.max_receiver_timediff, fetcherindex, fetcher)
-
+        # Protocol line 3: available day
+        available_day = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
+        if available_day != day:
+            logger.warning("Fetcher not ready %d %s: expected %s but got %s", fetcherindex, fetcher, day,
+                           available_day)
+            return False
         self.cur.execute("SAVEPOINT domainlist")
         # read the domain list
         result = True

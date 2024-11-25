@@ -72,8 +72,10 @@ def signalhandler(signum, frame):
 
 signal.signal(signal.SIGINT, signalhandler)
 signal.signal(signal.SIGTERM, signalhandler)
-signal.signal(signal.SIGUSR2, signalhandler)
-
+try:
+    signal.signal(signal.SIGUSR2, signalhandler)  # only used for development to trigger day roll-over
+except AttributeError as e:
+    pass
 
 ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                         ['storage',

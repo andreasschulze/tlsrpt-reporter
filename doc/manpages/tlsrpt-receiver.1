@@ -63,6 +63,12 @@ If a commit fails due to a timeout, retrying after every datagram might risk run
 Retrying only every \fIn\fP datagrams reduces the time waiting for such timeouts.
 .RE
 .sp
+\fB\-\-daily_rollover_script\fP=\fIscript\fP
+.RS 4
+If this option is set, \fIscript\fP will be run after midnight UTC has passed and maintenance steps were performed.
+This can be useful to push the receiver database to some other place in setups where a remote TLSRPT\-receiver cannot be easily queried from the TLSRPT\-reporter but the TLSRPT\-receiver can push data to the TLSRPT\-reporter.
+.RE
+.sp
 \fB\-\-dump_path_for_invalid_datagram\fP=\fIpath\fP
 .RS 4
 If an invalid datagram is received and this options is set, the invalid datagram will be saved in the file named \fIpath\fP.

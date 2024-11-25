@@ -72,6 +72,7 @@ def signalhandler(signum, frame):
 
 signal.signal(signal.SIGINT, signalhandler)
 signal.signal(signal.SIGTERM, signalhandler)
+signal.signal(signal.SIGUSR2, signalhandler)
 
 
 ConfigReceiver = collections.namedtuple("ConfigReceiver",
@@ -82,6 +83,7 @@ ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                          'retry_commit_datagram_count',
                                          'logfilename',
                                          'log_level',
+                                         'daily_rollover_script',
                                          'dump_path_for_invalid_datagram'])
 
 
@@ -97,6 +99,7 @@ options_receiver = {
                                     "help": "Retry commit after that many datagrams more were received"},
     "logfilename": {"type": str, "default": "/var/log/tlsrpt/receiver.log", "help": "Log file name for receiver"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
+    "daily_rollover_script": {"type": str, "default": "", "help": "Hook script to run after day has changed"},
     "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": "Filename to save an invalid datagram"},
 }
 
@@ -247,6 +250,13 @@ class TLSRPTReceiver(metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
+    def switch_to_next_day(self, develmode=False):
+        """
+        Switch to next day after UTC-midnight
+        """
+        pass
+
     @staticmethod
     def factory(url: str, config: ConfigReceiver):
         cls = plugins.get_plugin("tlsrpt.receiver", url)
@@ -265,6 +275,9 @@ class DummyReceiver(TLSRPTReceiver):
             raise Exception(f"DummyReceiver can not be instantiated from '{url}'")
         dolog = (parsed.query == "log")
         self.dolog = dolog
+
+    def switch_to_next_day(self, develmode=False):
+        pass
 
     def add_datagram(self, datagram):
         if self.dolog:
@@ -357,6 +370,8 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
             raise Exception(f"SQLiteReceiver can not be instantiated from '{url}'")
 
         self.cfg = config
+        self.url = url
+        self.today = tlsrpt_utc_date_now()
         self.uncommitted_datagrams = 0
         self.total_datagrams_read = 0
         self.dbname = parsed.path
@@ -372,6 +387,49 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
         # Settings for flushing to disk
         self.commitEveryN = self.cfg.max_uncommited_datagrams
         self.next_commit = tlsrpt_utc_time_now()
+
+    def switch_to_next_day(self, develmode=False):
+        """
+        Switch to next day after UTC-midnight
+        """
+        yesterday = tlsrpt_utc_date_yesterday()
+        commit_message = "Midnight UTC database rollover"
+        if develmode:
+            self.con.set_trace_callback(print)
+            commit_message = commit_message + " FOR DEVELOPMENT"
+            self._db_commit(commit_message)
+            self.cur.execute("UPDATE finalresults SET day=? WHERE day=?", (yesterday, self.today))
+            logger.debug("Updated %d rows in finalresults", self.cur.rowcount)
+            self.cur.execute("UPDATE failures SET day=? WHERE day=?", (yesterday, self.today))
+            logger.debug("Updated %d rows in failuredetails", self.cur.rowcount)
+            self.con.commit()
+        self._db_commit(commit_message)
+        self.cur.close()
+        self.con.close()
+        yesterdaydbname = make_yesterday_dbname(self.dbname)
+        if os.path.isfile(yesterdaydbname):
+            os.remove(yesterdaydbname)
+        os.rename(self.dbname, yesterdaydbname)
+        # start new day
+        self.today = tlsrpt_utc_date_now()
+        logger.info("Create new database %s", self.dbname)
+        self.con = sqlite3.connect("file:///"+self.dbname, uri=True)
+        self.cur = self.con.cursor()
+        self.total_datagrams_read = 0
+        if self.uncommitted_datagrams != 0:
+            logger.error("%d uncommitted datagrams during day roll-over", self.uncommitted_datagrams)
+            self.uncommitted_datagrams = 0
+        self._setup_database()
+        # finally start hook script
+        script = self.cfg.daily_rollover_script
+        if script is not None and script != "":
+            try:
+                args = script.split()
+                args.append(self.url)
+                args.append(yesterdaydbname)
+                subprocess.Popen(args)
+            except Exception as e:
+                logger.error("Unexpected problem while starting daily rollover script '%s': %s", script, e)
 
     def _db_commit(self, reason):
         """
@@ -447,7 +505,10 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
 
     def add_datagram(self, datagram):
         # process the datagram
-        self._add_policies_from_datagram(tlsrpt_utc_date_now(), datagram)
+        datenow = tlsrpt_utc_date_now()
+        if self.today != datenow:
+            self.switch_to_next_day()
+        self._add_policies_from_datagram(datenow, datagram)
         # database maintenance
         self.uncommitted_datagrams += 1
         self.total_datagrams_read += 1
@@ -457,6 +518,9 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
         """
         Commit database to disk periodically
         """
+        datenow = tlsrpt_utc_date_now()
+        if self.today != datenow:
+            self.switch_to_next_day()
         self.timed_commit()
 
 
@@ -509,7 +573,7 @@ class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):
         self.cfg = config
         self.uncommitted_datagrams = 0
         self.total_datagrams_read = 0
-        self.dbname = parsed.path
+        self.dbname = make_yesterday_dbname(parsed.path)
         logger.debug("Try to open database '%s'", self.dbname)
         self.con = sqlite3.connect("file:///"+self.dbname, uri=True)
         self.cur = self.con.cursor()
@@ -1258,12 +1322,17 @@ def tlsrpt_receiver_main():
                 if key.fileobj == interrupt_read:
                     signumb = interrupt_read.recv(1)
                     signum = ord(signumb)
-                    logger.info("Caught signal %d, cleaning up", signum)
-                    for receiver in receivers:
-                        logger.info("Triggering socket timeout on receiver")
-                        receiver.socket_timeout()
-                    logger.info("Done")
-                    return 0
+                    if signum == signal.SIGUSR2:
+                        logger.info("Caught signal %d, enforce debug day roll-over for development", signum)
+                        for receiver in receivers:
+                            receiver.switch_to_next_day(develmode=True)
+                    else:
+                        logger.info("Caught signal %d, cleaning up", signum)
+                        for receiver in receivers:
+                            logger.info("Triggering socket timeout on receiver")
+                            receiver.socket_timeout()
+                        logger.info("Done")
+                        return 0
                 if key.fileobj == sock:
                     had_data += 1
                     alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_RECEIVER)

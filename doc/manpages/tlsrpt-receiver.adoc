@@ -37,6 +37,15 @@ The URL schema identifies the storage backend.
 *--socketname*=_path_::
 Listen on unix domain socket _path_ for report data.
 
+*--socketuser*=_name_::
+Set the user ownership of the socket to _name_.
+
+*--socketgroup*=_name_::
+Set the group ownership of the socket to _name_.
+
+*--socketmode*=_octal_::
+Set the file mode bits of the socket to numeric mode _octal_. E.g. 0200 to allow only write access for the owner.
+
 *--sockettimeout*=_n_::
 Commit accumulated data to the data storage if _n_ seconds have passed since the last commit.
 

@@ -7,6 +7,11 @@
 *--help*::
   Print a help message describing all options.
 
+ifdef::varpar-daemonname[]
+*--pidfilename*=_path_::
+Specifies the file that contains the process ID of the {varpar-daemonname} daemon. An empty string will cause no PID file to be created.
+endif::[]
+
 === Logging options
 
 *--logfilename*=_filename_::

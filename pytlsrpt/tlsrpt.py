@@ -87,6 +87,7 @@ ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                          'sockettimeout',
                                          'max_uncommited_datagrams',
                                          'retry_commit_datagram_count',
+                                         'pidfilename',
                                          'logfilename',
                                          'log_level',
                                          'daily_rollover_script',
@@ -106,6 +107,7 @@ options_receiver = {
                                  "help": "Commit after that many datagrams were received"},
     "retry_commit_datagram_count": {"type": int, "default": 1000,
                                     "help": "Retry commit after that many datagrams more were received"},
+    "pidfilename": {"type": str, "default": "", "help": "PID file name for receiver"},
     "logfilename": {"type": str, "default": "/var/log/tlsrpt/receiver.log", "help": "Log file name for receiver"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
     "daily_rollover_script": {"type": str, "default": "", "help": "Hook script to run after day has changed"},
@@ -138,6 +140,7 @@ pospars_fetcher = {
 
 ConfigReporter = collections.namedtuple("ConfigReporter",
                                         ['logfilename',
+                                         'pidfilename',
                                          'log_level',
                                          'debug_db',
                                          'debug_send_mail_dest',
@@ -170,6 +173,7 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
 
 # Available command line options for the reporter
 options_reporter = {
+    "pidfilename": {"type": str, "default": "", "help": "PID file name for reporter"},
     "logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": "Log file name for reporter"},
     "log_level": {"type": str, "default": "warn", "help": "Log level"},
     "debug_db": {"type": int, "default": 0, "help": "Enable database debugging"},
@@ -234,6 +238,32 @@ class EmailReport(email.message.EmailMessage):
             if k == header:
                 return v
         raise IndexError("Header not found: " + header)
+
+
+class PidFile:
+    """
+    PID file context manager
+    """
+    def __init__(self, filename):
+        """
+        Create a new PDI file context manager
+        :param filename: the name of the pidfile
+        """
+        self.filename = filename
+    def __enter__(self):
+        try:
+            if self.filename != "":
+                fd = open(self.filename, mode="w")
+                print(os.getpid(), file=fd)
+                fd.close()
+        except Exception as e:
+            logger.warning("Error while creating pid-file %s: %s", self.filename, e)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if self.filename != "":
+                os.remove(self.filename)
+        except Exception:
+            logger.warning("Error while removing pid-file %s: %s", self.filename, e)
 
 
 class TLSRPTReceiver(metaclass=ABCMeta):
@@ -1325,10 +1355,12 @@ def tlsrpt_receiver_main():
     config = ConfigReceiver(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_receiver")
     log_config_info(logger, configvars, sources)
+    with PidFile(config.pidfilename):
+        tlsrpt_receiver_daemon(config)
 
+
+def tlsrpt_receiver_daemon(config: ConfigReceiver):
     server_address = config.socketname
-
-
     logger.info("TLSRPT receiver starting")
     # Make sure the socket does not already exist
     try:
@@ -1370,7 +1402,6 @@ def tlsrpt_receiver_main():
             os.chmod(path=server_address, mode=mode)
     except Exception as e:
         logger.error("Could not chmod socket %s to mode %s: %s", server_address, config.socketmode, e)
-
 
     # Multiple receivers to be set-up from configuration
     receivers = []
@@ -1484,8 +1515,9 @@ def tlsrpt_reporter_main():
 
     logger.info("TLSRPT reporter starting")
 
-    reporter = TLSRPTReporter(config)
-    reporter.run_loop()
+    with PidFile(config.pidfilename):
+        reporter = TLSRPTReporter(config)
+        reporter.run_loop()
 
 
 if __name__ == "__main__":

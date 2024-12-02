@@ -36,7 +36,7 @@ class MyTestCase(unittest.TestCase):
         fields.sort()
         return fields
 
-    def get_options_from_manpage(self, manpage):
+    def get_options_from_manpage(self, manpage, has_pidfile):
         """
         Collect the command line options that are documented in a manpage
         :param manpage: the name of the man page
@@ -52,11 +52,13 @@ class MyTestCase(unittest.TestCase):
                         parts = line.partition("*--")
                         parts = parts[2].partition("*")
                         option = parts[0]
+                        if option == "pidfilename" and not has_pidfile:
+                            continue
                         documented.append(option)
         documented.sort()
         return documented
 
-    def check_manpage_against_options(self, manpage, config):
+    def check_manpage_against_options(self, manpage, config, has_pidfile):
         """
         Check if the command line options defined in a named tuple match the options documented in a manpage
         :param manpage: Name of the manpage
@@ -64,26 +66,26 @@ class MyTestCase(unittest.TestCase):
         """
         self.maxDiff = None
         fields = self.get_fields_from_config_named_tuple(config)
-        documented = self.get_options_from_manpage(manpage)
+        documented = self.get_options_from_manpage(manpage, has_pidfile)
         self.assertListEqual(fields, documented)
 
     def test_receiver_manpage(self):
         """
         Check if manpages match actual command line options for tlsrpt-receiver
         """
-        self.check_manpage_against_options("tlsrpt-receiver", pytlsrpt.tlsrpt.ConfigReceiver)
+        self.check_manpage_against_options("tlsrpt-receiver", pytlsrpt.tlsrpt.ConfigReceiver, True)
 
     def test_fetcher_manpage(self):
         """
         Check if manpage matches actual command line options for tlsrpt-fetcher
         """
-        self.check_manpage_against_options("tlsrpt-fetcher", pytlsrpt.tlsrpt.ConfigFetcher)
+        self.check_manpage_against_options("tlsrpt-fetcher", pytlsrpt.tlsrpt.ConfigFetcher, False)
 
     def test_reporter_manpage(self):
         """
         Check if manpage matches actual command line options for tlsrpt-reporter
         """
-        self.check_manpage_against_options("tlsrpt-reporter", pytlsrpt.tlsrpt.ConfigReporter)
+        self.check_manpage_against_options("tlsrpt-reporter", pytlsrpt.tlsrpt.ConfigReporter, True)
 
 
 if __name__ == '__main__':

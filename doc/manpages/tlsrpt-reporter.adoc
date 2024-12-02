@@ -15,7 +15,7 @@ tlsrpt-reporter - A daemon to create and deliver TLSRPT reports according to RFC
 
 == Synopsis
 
-*tlsrpt-fetcher* [_OPTION_]
+*tlsrpt-reporter* [_OPTION_]
 
 == Description
 The tlsrpt-reporter is the final component in the TLSRPT framework.

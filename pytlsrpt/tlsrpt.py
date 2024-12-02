@@ -1283,7 +1283,7 @@ class TLSRPTReporter(VersionedSQLite):
     def report_id(self, day, report_index, report_domain):
         """
         Creates a report id
-        :param report_start_datetime: Start time of the report
+        :param day: Day of the report
         :param report_index: Running index of this report in case there might be multiple reports on the same day
         :param report_domain: Domain this report is for
         :return: a report id to be used in the report_id JOSN field and in the email subject

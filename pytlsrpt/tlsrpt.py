@@ -28,6 +28,7 @@ from abc import ABCMeta, abstractmethod
 import os
 from pathlib import Path
 from selectors import DefaultSelector, EVENT_READ
+import shutil
 import signal
 import socket
 import subprocess
@@ -80,6 +81,9 @@ except AttributeError as e:
 ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                         ['storage',
                                          'socketname',
+                                         'socketuser',
+                                         'socketgroup',
+                                         'socketmode',
                                          'sockettimeout',
                                          'max_uncommited_datagrams',
                                          'retry_commit_datagram_count',
@@ -94,6 +98,9 @@ options_receiver = {
     "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite",
                 "help": "Storage backend, multiple backends separated by comma"},
     "socketname": {"type": str, "default": "", "help": "Name of the unix domain socket to receive data"},
+    "socketuser": {"type": str, "default": "", "help": "User owning the unix domain socket to receive data"},
+    "socketgroup": {"type": str, "default": "", "help": "Group of the unix domain socket to receive data"},
+    "socketmode": {"type": str, "default": "", "help": "Permissions of the unix domain in octal, eg 0220"},
     "sockettimeout": {"type": int, "default": 5, "help": "Read timeout for the socket"},
     "max_uncommited_datagrams": {"type": int, "default": 1000,
                                  "help": "Commit after that many datagrams were received"},
@@ -1340,6 +1347,30 @@ def tlsrpt_receiver_main():
     logger.info("Listening on socket '%s'", server_address)
     sock.bind(server_address)
     sock.setblocking(False)
+    # adjust socket user/group
+    kwargs={}
+    kwargs["path"]=server_address
+    if config.socketuser is not None and config.socketuser != "":
+        kwargs["user"] = config.socketuser
+    if config.socketgroup is not None and config.socketgroup != "":
+        kwargs["group"] = config.socketgroup
+    try:
+        if len(kwargs)>1:  # we have at least one of user and group
+            logger.info("Chmoding socket %s", str(kwargs))
+            shutil.chown(**kwargs)
+    except Exception as e:
+        logger.error("Could not chown socket %s: %s", str(kwargs), e)
+    # adjust socket permissions
+    try:
+        if config.socketmode is not None and config.socketmode != "":
+            mode = int(config.socketmode, base=8)
+            if config.socketmode[0] != '0':
+                logger.warning("Config option socketmode '%s' does not look like octal", config.socketmode)
+            logger.info("Chmoding socket %s to permissions 0%o (decimal %d)", server_address, mode, mode)
+            os.chmod(path=server_address, mode=mode)
+    except Exception as e:
+        logger.error("Could not chmod socket %s to mode %s: %s", server_address, config.socketmode, e)
+
 
     # Multiple receivers to be set-up from configuration
     receivers = []

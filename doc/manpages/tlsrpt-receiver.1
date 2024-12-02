@@ -46,6 +46,21 @@ The URL schema identifies the storage backend.
 Listen on unix domain socket \fIpath\fP for report data.
 .RE
 .sp
+\fB\-\-socketuser\fP=\fIname\fP
+.RS 4
+Set the user ownership of the socket to \fIname\fP.
+.RE
+.sp
+\fB\-\-socketgroup\fP=\fIname\fP
+.RS 4
+Set the group ownership of the socket to \fIname\fP.
+.RE
+.sp
+\fB\-\-socketmode\fP=\fIoctal\fP
+.RS 4
+Set the file mode bits of the socket to numeric mode \fIoctal\fP. E.g. 0200 to allow only write access for the owner.
+.RE
+.sp
 \fB\-\-sockettimeout\fP=\fIn\fP
 .RS 4
 Commit accumulated data to the data storage if \fIn\fP seconds have passed since the last commit.

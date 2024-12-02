@@ -262,7 +262,7 @@ class PidFile:
         try:
             if self.filename != "":
                 os.remove(self.filename)
-        except Exception:
+        except Exception as e:
             logger.warning("Error while removing pid-file %s: %s", self.filename, e)
 
 

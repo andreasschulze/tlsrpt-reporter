@@ -75,8 +75,9 @@ signal.signal(signal.SIGINT, signalhandler)
 signal.signal(signal.SIGTERM, signalhandler)
 try:
     signal.signal(signal.SIGUSR2, signalhandler)  # only used for development to trigger day roll-over
-except AttributeError as e:
+except AttributeError:
     pass
+
 
 ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                         ['storage',

@@ -332,6 +332,12 @@ class VersionedSQLite(metaclass=ABCMeta):
     """
     Abstract base class for versioned SQLite databases
     """
+    def __init__(self, dbname):
+        self.dbname = dbname
+        logger.debug("Try to open database '%s'", self.dbname)
+        self.con = sqlite3.connect("file:///"+self.dbname, uri=True)
+        self.cur = self.con.cursor()
+
     def _setup_database(self):
         """
         Set up the database: Create tables and manage version information
@@ -386,6 +392,8 @@ class VersionedSQLite(metaclass=ABCMeta):
 
 
 class VersionedSQLiteReceiverBase(VersionedSQLite):
+    def __init__(self, dbname):
+        super().__init__(dbname)
     def _db_purpose(self):
         return "TLSRPT-Receiver-DB" + DB_Purpose_Suffix
 
@@ -415,10 +423,7 @@ class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
         self.today = tlsrpt_utc_date_now()
         self.uncommitted_datagrams = 0
         self.total_datagrams_read = 0
-        self.dbname = parsed.path
-        logger.debug("Try to open database '%s'", self.dbname)
-        self.con = sqlite3.connect("file:///"+self.dbname, uri=True)
-        self.cur = self.con.cursor()
+        super().__init__(parsed.path)
         if self._check_database():
             logger.info("Database %s looks OK", self.dbname)
         else:
@@ -616,10 +621,7 @@ class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):
         self.cfg = config
         self.uncommitted_datagrams = 0
         self.total_datagrams_read = 0
-        self.dbname = make_yesterday_dbname(parsed.path)
-        logger.debug("Try to open database '%s'", self.dbname)
-        self.con = sqlite3.connect("file:///"+self.dbname, uri=True)
-        self.cur = self.con.cursor()
+        super().__init__(make_yesterday_dbname(parsed.path))
         if self._check_database():
             logger.info("Database %s looks OK", self.dbname)
         else:
@@ -702,9 +704,7 @@ class TLSRPTReporter(VersionedSQLite):
         :type config: ConfigReporter
         """
         self.cfg = config
-        self.dbname = self.cfg.dbname
-        self.con = sqlite3.connect(self.dbname)
-        self.cur = self.con.cursor()
+        super().__init__(self.cfg.dbname)
         self.curtoupdate = self.con.cursor()
         self.randPoolDelivery = randpool.RandPool(self.cfg.spread_out_delivery)
         self.wakeuptime = tlsrpt_utc_time_now()

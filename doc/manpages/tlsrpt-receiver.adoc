@@ -6,6 +6,7 @@ v0.5.0
 :mansource: tlsrpt-receiver
 :man-linkstyle: pass:[blue R < >]
 :varpar-configsection: tlsrpt_receiver
+:varpar-daemonname: tlsrpt-receiver
 :varpar-environmentprefix: TLSRPT_RECEIVER_
 
 == Name
@@ -66,7 +67,6 @@ If an invalid datagram is received and this options is set, the invalid datagram
 
 
 include::manpage-common-options.adoc[]
- 
  
 == Exit status
 *0*::

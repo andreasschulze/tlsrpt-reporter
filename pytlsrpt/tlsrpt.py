@@ -1077,7 +1077,12 @@ class TLSRPTReporter(VersionedSQLite):
         cur.execute("INSERT INTO reports (day, domain, uniqid, report) VALUES(?,?,?,?)",
                     (day, dom, uniqid, json.dumps(report)))
         r_id = cur.lastrowid
-        for rua in parse_tlsrpt_record(tlsrptrecord):
+        ruas = []
+        try:
+            ruas = parse_tlsrpt_record(tlsrptrecord)
+        except MalformedTlsrptRecordException as e:
+            logger.error("Bad TLSRPT record on day %s for domain %s: '%s' => %s", day, dom, tlsrptrecord, e)
+        for rua in ruas:
             cur.execute("INSERT INTO destinations (destination, d_r_id, retries, status, nexttry) VALUES(?,?,0,NULL,?)",
                         (rua, r_id, self.schedule_report_delivery()))
 

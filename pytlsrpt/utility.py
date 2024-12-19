@@ -19,6 +19,8 @@
 
 import datetime
 
+class MalformedTlsrptRecordException(Exception):
+    pass
 
 def parse_tlsrpt_record(tlsrpt_record):
     """
@@ -29,12 +31,12 @@ def parse_tlsrpt_record(tlsrpt_record):
     # first split into the main parts: version and RUAs
     mparts = tlsrpt_record.split(";")
     if(len(mparts) < 2):
-        raise Exception("Malformed TLSRPT record: No semicolon found")
+        raise MalformedTlsrptRecordException("Malformed TLSRPT record: No semicolon found")
     if(mparts[0] != "v=TLSRPTv1"):
-        raise Exception("Unsupported TLSRPT version: " + mparts[0])
+        raise MalformedTlsrptRecordException("Unsupported TLSRPT version: " + mparts[0])
     ruapart = mparts[1].strip()
     if not ruapart.startswith("rua="):
-        raise Exception("Malformed TLSRPT record: No rua found")
+        raise MalformedTlsrptRecordException("Malformed TLSRPT record: No rua found")
     ruapart=ruapart[4:]  # remove leading "rua="
     ruas=ruapart.split(",")
     return ruas

@@ -26,8 +26,8 @@ tlsrpt\-reporter \- A daemon to create and deliver TLSRPT reports according to R
 .SH "DESCRIPTION"
 .sp
 The tlsrpt\-reporter is the final component in the TLSRPT framework.
-A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt\-receiver which collects and pre\-aggregates the data.
-The tlsrpt\-fetcher associated with a tlsrpt\-receiver transfers the pre\-aggregated data to the tlsrpt\-reporter.
+A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt\-collectd which collects and pre\-aggregates the data.
+The tlsrpt\-fetcher associated with a tlsrpt\-collectd transfers the pre\-aggregated data to the tlsrpt\-reporter.
 The tlsrpt\-reporter can retrieve data from multiple tlsrpt\-fetchers and aggregates the pre\-aggregated data into the final reports.
 Those reports are gzip\-compressed and sent out to the destinations as specified in the TLSRPT DNS records of the domains that have received emails from the MTA.
 .sp
@@ -36,7 +36,7 @@ A simple data flow diagram visualizing the interaction of the components looks l
     v
   libtlsrt
     v
-  tlsrpt\-receiver
+  tlsrpt\-collectd
     v
   (storage)
     v
@@ -121,17 +121,17 @@ Minimum time to wait before retrying a failed report delivery attempt.
 .RS 4
 Maximum time to wait before retrying a failed report delivery attempt.
 .RE
-.SS "Options controlling the interaction with tlsrpt\-receivers"
+.SS "Options controlling the interaction with one or more tlsrpt\-collectd"
 .sp
-\fB\-\-max_receiver_timediff\fP=\fIsec\fP
+\fB\-\-max_collectd_timediff\fP=\fIsec\fP
 .RS 4
-Log a warning if the receiver clock reported by its fetcher differs by more than \fIsec\fP seconds from the reporter´s clock.
-The reporter starts querying the fetchers \fIsec\fP seconds after the UTC day change, so a clock difference bigger than \fIsec\fP seconds indicates the receiver might not yet been ready to provide the complete data for the previous day.
+Log a warning if the collectd clock reported by its fetcher differs by more than \fIsec\fP seconds from the reporter´s clock.
+The reporter starts querying the fetchers \fIsec\fP seconds after the UTC day change, so a clock difference bigger than \fIsec\fP seconds indicates the collectd might not yet been ready to provide the complete data for the previous day.
 .RE
 .sp
-\fB\-\-max_receiver_timeout\fP=\fIsec\fP
+\fB\-\-max_collectd_timeout\fP=\fIsec\fP
 .RS 4
-Wait at most \fIsec\fP seconds for a fetcher to finish a request for data from its receiver.
+Wait at most \fIsec\fP seconds for a fetcher to finish a request for data from its collectd.
 .RE
 .sp
 \fB\-\-max_retries_domaindetails\fP=\fIn\fP
@@ -141,27 +141,27 @@ Give up after \fIn\fP failed attempts to retrieve report details for a domain.
 .sp
 \fB\-\-min_wait_domaindetails\fP=\fIsec\fP
 .RS 4
-Minimum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt\-receiver.
+Minimum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt\-collectd.
 .RE
 .sp
 \fB\-\-max_wait_domaindetails\fP=\fIsec\fP
 .RS 4
-Maximum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt\-receiver.
+Maximum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt\-collectd.
 .RE
 .sp
 \fB\-\-max_retries_domainlist\fP=\fIn\fP
 .RS 4
-Give up after \fIn\fP failed attempts to retrieve the list of domains from a tlsrpt\-receiver.
+Give up after \fIn\fP failed attempts to retrieve the list of domains from a tlsrpt\-collectd.
 .RE
 .sp
 \fB\-\-min_wait_domainlist\fP=\fIsec\fP
 .RS 4
-Minimum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt\-receiver.
+Minimum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt\-collectd.
 .RE
 .sp
 \fB\-\-max_wait_domainlist\fP=\fIsec\fP
 .RS 4
-Maximum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt\-receiver.
+Maximum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt\-collectd.
 .RE
 .sp
 \fB\-\-interval_main_loop\fP=\fIsec\fP
@@ -248,7 +248,7 @@ Failure.
 .RE
 .SH "SEE ALSO"
 .sp
-\fBtlsrpt\-receiver\fP(1), \fBtlsrpt\-fetcher\fP(1)
+\fBtlsrpt\-collectd\fP(1), \fBtlsrpt\-fetcher\fP(1)
 .SH "AUTHOR(S)"
 .sp
 \fBBoris Lohner\fP

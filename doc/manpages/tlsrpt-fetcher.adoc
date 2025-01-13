@@ -10,7 +10,7 @@ v0.5.0
 
 == Name
 
-tlsrpt-fetcher - The data transfer agent to bring TLSRPT report data from the tlsrpt-receiver to the tlsrpt-reporter.
+tlsrpt-fetcher - The data transfer agent to bring TLSRPT report data from the tlsrpt-collectd to the tlsrpt-reporter.
 
 == Synopsis
 
@@ -18,7 +18,7 @@ tlsrpt-fetcher - The data transfer agent to bring TLSRPT report data from the tl
 
 == Description
 
-The tlsrpt-fetcher is called by the tlsrpt-reporter to collect the pre-aggregated data from tlsrpt-receivers.
+The tlsrpt-fetcher is called by the tlsrpt-reporter to collect the pre-aggregated data from tlsrpt-collectds.
 The data retrieval is done in two steps.
 
 In the first step, the reporter asks for a list of domains for which data was collected.
@@ -26,7 +26,7 @@ In the first step, the reporter asks for a list of domains for which data was co
 In this step the reporter first checks if the tlsrpt-fetcher supports a matching protocol version in case future versions will use a different protocol.
 The fetcher-protocol version is therefore the first line.
 
-The second line is the current time of the tlsrpt-receiver/tlsrpt-fetcher bundle.
+The second line is the current time of the tlsrpt-collectd/tlsrpt-fetcher bundle.
 If the time differs too much from the time of the tlsrpt-reporter a warning is given that the data may not be completely processed.
 
 The following lines are the domains, one domain per line.
@@ -66,6 +66,6 @@ Fetch report details for domain example.com for the day of 2001-02-03:
 *tlsrpt-fetcher 2001-02-03 example.com*
 
 == See also
-man:tlsrpt-receiver[1], man:tlsrpt-reporter[1]
+man:tlsrpt-collectd[1], man:tlsrpt-reporter[1]
 
 include::manpage-copying.adoc[]

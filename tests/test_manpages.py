@@ -69,11 +69,11 @@ class MyTestCase(unittest.TestCase):
         documented = self.get_options_from_manpage(manpage, has_pidfile)
         self.assertListEqual(fields, documented)
 
-    def test_receiver_manpage(self):
+    def test_collectd_manpage(self):
         """
-        Check if manpages match actual command line options for tlsrpt-receiver
+        Check if manpages match actual command line options for tlsrpt-collectd
         """
-        self.check_manpage_against_options("tlsrpt-receiver", pytlsrpt.tlsrpt.ConfigReceiver, True)
+        self.check_manpage_against_options("tlsrpt-collectd", pytlsrpt.tlsrpt.ConfigReceiver, True)
 
     def test_fetcher_manpage(self):
         """

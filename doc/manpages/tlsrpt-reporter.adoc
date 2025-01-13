@@ -20,8 +20,8 @@ tlsrpt-reporter - A daemon to create and deliver TLSRPT reports according to RFC
 
 == Description
 The tlsrpt-reporter is the final component in the TLSRPT framework.
-A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt-receiver which collects and pre-aggregates the data.
-The tlsrpt-fetcher associated with a tlsrpt-receiver transfers the pre-aggregated data to the tlsrpt-reporter.
+A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt-collectd which collects and pre-aggregates the data.
+The tlsrpt-fetcher associated with a tlsrpt-collectd transfers the pre-aggregated data to the tlsrpt-reporter.
 The tlsrpt-reporter can retrieve data from multiple tlsrpt-fetchers and aggregates the pre-aggregated data into the final reports.
 Those reports are gzip-compressed and sent out to the destinations as specified in the TLSRPT DNS records of the domains that have received emails from the MTA.
 
@@ -30,7 +30,7 @@ A simple data flow diagram visualizing the interaction of the components looks l
     v
   libtlsrt
     v
-  tlsrpt-receiver
+  tlsrpt-collectd
     v
   (storage)
     v
@@ -93,34 +93,34 @@ Minimum time to wait before retrying a failed report delivery attempt.
 Maximum time to wait before retrying a failed report delivery attempt.
 
 
-=== Options controlling the interaction with tlsrpt-receivers
+=== Options controlling the interaction with one or more tlsrpt-collectd
 
-*--max_receiver_timediff*=_sec_::
-Log a warning if the receiver clock reported by its fetcher differs by more than _sec_ seconds from the reporter´s clock.
-The reporter starts querying the fetchers _sec_ seconds after the UTC day change, so a clock difference bigger than _sec_ seconds indicates the receiver might not yet been ready to provide the complete data for the previous day.
+*--max_collectd_timediff*=_sec_::
+Log a warning if the collectd clock reported by its fetcher differs by more than _sec_ seconds from the reporter´s clock.
+The reporter starts querying the fetchers _sec_ seconds after the UTC day change, so a clock difference bigger than _sec_ seconds indicates the collectd might not yet been ready to provide the complete data for the previous day.
 
-*--max_receiver_timeout*=_sec_::
-Wait at most _sec_ seconds for a fetcher to finish a request for data from its receiver.
+*--max_collectd_timeout*=_sec_::
+Wait at most _sec_ seconds for a fetcher to finish a request for data from its collectd.
 
 
 *--max_retries_domaindetails*=_n_::
 Give up after _n_ failed attempts to retrieve report details for a domain.
 
 *--min_wait_domaindetails*=_sec_::
-Minimum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt-receiver.
+Minimum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt-collectd.
 
 *--max_wait_domaindetails*=_sec_::
-Maximum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt-receiver.
+Maximum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt-collectd.
 
 
 *--max_retries_domainlist*=_n_:: 
-Give up after _n_ failed attempts to retrieve the list of domains from a tlsrpt-receiver. 
+Give up after _n_ failed attempts to retrieve the list of domains from a tlsrpt-collectd. 
 
 *--min_wait_domainlist*=_sec_::
-Minimum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt-receiver.
+Minimum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt-collectd.
 
 *--max_wait_domainlist*=_sec_::
-Maximum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt-receiver.
+Maximum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt-collectd.
 
 
 *--interval_main_loop*=_sec_::
@@ -168,7 +168,7 @@ Failure.
 
 
 == See also
-man:tlsrpt-receiver[1], man:tlsrpt-fetcher[1]
+man:tlsrpt-collectd[1], man:tlsrpt-fetcher[1]
 
 include::manpage-copying.adoc[]
 

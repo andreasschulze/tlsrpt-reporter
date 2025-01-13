@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: tlsrpt-receiver
+.\"     Title: tlsrpt-collectd
 .\"    Author: Boris Lohner
 .\" Generator: Asciidoctor 1.5.6.1
 .\"      Date: 2024-11-06
-.\"    Manual: tlsrpt-receiver
-.\"    Source: tlsrpt-receiver
+.\"    Manual: tlsrpt-collectd
+.\"    Source: tlsrpt-collectd
 .\"  Language: English
 .\"
-.TH "TLSRPT\-RECEIVER" "1" "2024-11-06" "tlsrpt\-receiver" "tlsrpt\-receiver"
+.TH "TLSRPT\-COLLECTD" "1" "2024-11-06" "tlsrpt\-collectd" "tlsrpt\-collectd"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -19,16 +19,16 @@
 .if \n[.g] .mso www.tmac
 .LINKSTYLE blue R < >
 .SH "NAME"
-tlsrpt\-receiver \- A daemon collecting TLSRPT report data from MTA instances via a unix domain socket.
+tlsrpt\-collectd \- A daemon collecting TLSRPT report data from MTA instances via a unix domain socket.
 .SH "SYNOPSIS"
 .sp
-\fBtlsrpt\-receiver\fP [\fIOPTION\fP]
+\fBtlsrpt\-collectd\fP [\fIOPTION\fP]
 .SH "DESCRIPTION"
 .sp
-The tlsrpt\-receiver collects data from MTAs about successful encrypted delivery of emails or about failures that occured during delivery attempts.
+The tlsrpt\-collectd collects data from MTAs about successful encrypted delivery of emails or about failures that occured during delivery attempts.
 The data is pre\-aggregated and will be retrieved by matching tlsrpt\-fetchers.
 .sp
-Tlsrpt\-receivers can use different storage back\-ends and for each such implementation a matching fetcher implementation must be provided if the data is to be used by a tlsrpt\-reporter.
+Tlsrpt\-collectds can use different storage back\-ends and for each such implementation a matching fetcher implementation must be provided if the data is to be used by a tlsrpt\-reporter.
 .sp
 It is also possible to implement storage backends that are not queried by a tlsrpt\-reporter.
 Such "storage" back\-ends would just collect the data for analyzing purposes, but would not provide measn to retrieve the data again.
@@ -81,7 +81,7 @@ Retrying only every \fIn\fP datagrams reduces the time waiting for such timeouts
 \fB\-\-daily_rollover_script\fP=\fIscript\fP
 .RS 4
 If this option is set, \fIscript\fP will be run after midnight UTC has passed and maintenance steps were performed.
-This can be useful to push the receiver database to some other place in setups where a remote TLSRPT\-receiver cannot be easily queried from the TLSRPT\-reporter but the TLSRPT\-receiver can push data to the TLSRPT\-reporter.
+This can be useful to push the collectd database to some other place in setups where a remote TLSRPT\-collectd cannot be easily queried from the TLSRPT\-reporter but the TLSRPT\-collectd can push data to the TLSRPT\-reporter.
 .RE
 .sp
 \fB\-\-dump_path_for_invalid_datagram\fP=\fIpath\fP
@@ -92,7 +92,7 @@ If an invalid datagram is received and this options is set, the invalid datagram
 .sp
 \fB\-\-config_file\fP=\fIfilename\fP
 .RS 4
-Read options from the section tlsrpt_receiver of the INI\-style configuration file \fIfilename\fP.
+Read options from the section tlsrpt_collectd of the INI\-style configuration file \fIfilename\fP.
 Environment variables override setings from the configurstion file and command line options override both.
 .RE
 .sp
@@ -103,7 +103,7 @@ Print a help message describing all options.
 .sp
 \fB\-\-pidfilename\fP=\fIpath\fP
 .RS 4
-Specifies the file that contains the process ID of the tlsrpt\-receiver daemon. An empty string will cause no PID file to be created.
+Specifies the file that contains the process ID of the tlsrpt\-collectd daemon. An empty string will cause no PID file to be created.
 .RE
 .SS "Logging options"
 .sp
@@ -146,9 +146,9 @@ Usage error.
 .RE
 .SH "EXAMPLES"
 .sp
-Run tlsrpt\-receiver with a special config file and ovverride the setting of log\-level:
+Run tlsrpt\-collectd with a special config file and ovverride the setting of log\-level:
 .sp
-\fBtlsrpt\-receiver \-\-config\-file /path/to/config.cfg \-\-log_level info\fP
+\fBtlsrpt\-collectd \-\-config\-file /path/to/config.cfg \-\-log_level info\fP
 .SH "SEE ALSO"
 .sp
 \fBtlsrpt\-fetcher\fP(1), \fBtlsrpt\-reporter\fP(1)

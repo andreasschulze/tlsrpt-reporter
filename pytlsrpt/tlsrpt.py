@@ -139,7 +139,7 @@ pospars_fetcher = {
 }
 
 
-ConfigReporter = collections.namedtuple("ConfigReporter",
+ConfigReportd = collections.namedtuple("ConfigReportd",
                                         ['logfilename',
                                          'pidfilename',
                                          'log_level',
@@ -172,10 +172,10 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
                                          'max_wait_domaindetails'])
 
 
-# Available command line options for the reporter
-options_reporter = {
-    "pidfilename": {"type": str, "default": "", "help": "PID file name for reporter"},
-    "logfilename": {"type": str, "default": "/var/log/tlsrpt/reporter.log", "help": "Log file name for reporter"},
+# Available command line options for the reportd
+options_reportd = {
+    "pidfilename": {"type": str, "default": "", "help": "PID file name for reportd"},
+    "logfilename": {"type": str, "default": "/var/log/tlsrpt/reportd.log", "help": "Log file name for reportd"},
     "log_level": {"type": str, "default": "warn", "help": "Log level"},
     "debug_db": {"type": int, "default": 0, "help": "Enable database debugging"},
     "keep_days": {"type": int, "default": 10, "help": "Days to keep old data"},
@@ -183,7 +183,7 @@ options_reporter = {
     "debug_send_http_dest": {"type": str, "default": "", "help": "Post all mail reports to this server instead"},
     "debug_send_file_dest": {"type": str, "default": "",
                              "help": "Save all mail reports to this directory additionally"},
-    "dbname": {"type": str, "default": "/var/lib/tlsrpt/reporter.sqlite", "help": "Name of database file"},
+    "dbname": {"type": str, "default": "/var/lib/tlsrpt/reportd.sqlite", "help": "Name of database file"},
     "fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher",
                  "help": "Comma-separated list of fetchers to collect data"},
     "organization_name": {"type": str, "default": "",
@@ -690,18 +690,18 @@ class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteCollectdBase):
         print(json.dumps(details, indent=4))
 
 
-class TLSRPTReporter(VersionedSQLite):
+class TLSRPTReportd(VersionedSQLite):
     """
-    The TLSRPT reporter class
+    The TLSRPT reportd class
     """
 
-    DEFAULT_CONFIG_FILE = "/etc/tlsrpt/reporter.cfg"
-    CONFIG_SECTION = "tlsrpt_reporter"
-    ENVIRONMENT_PREFIX = "TLSRPT_REPORTER_"
+    DEFAULT_CONFIG_FILE = "/etc/tlsrpt/reportd.cfg"
+    CONFIG_SECTION = "tlsrpt_reportd"
+    ENVIRONMENT_PREFIX = "TLSRPT_REPORTD_"
 
-    def __init__(self, config: ConfigReporter):
+    def __init__(self, config: ConfigReportd):
         """
-        :type config: ConfigReporter
+        :type config: ConfigReportd
         """
         self.cfg = config
         super().__init__(self.cfg.dbname)
@@ -717,7 +717,7 @@ class TLSRPTReporter(VersionedSQLite):
             self.con.set_trace_callback(print)
 
     def _db_purpose(self):
-        return "TLSRPT-Reporter-DB" + DB_Purpose_Suffix
+        return "TLSRPT-Reportd-DB" + DB_Purpose_Suffix
 
     def _ddl(self):
         return ["CREATE TABLE fetchjobs(day, fetcherindex, fetcher, retries, status, nexttry, "
@@ -866,11 +866,11 @@ class TLSRPTReporter(VersionedSQLite):
         collectd_time_string = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         collectd_time = datetime.datetime.strptime(collectd_time_string, TLSRPT_TIMEFORMAT). \
             replace(tzinfo=datetime.timezone.utc)
-        reporter_time = tlsrpt_utc_time_now()
-        dt = reporter_time - collectd_time
+        reportd_time = tlsrpt_utc_time_now()
+        dt = reportd_time - collectd_time
         if abs(dt.total_seconds()) > self.cfg.max_collectd_timediff:
-            logger.warning("Collectd time %s and reporter time %s differ more then %s on fetcher %d %s", collectd_time,
-                           reporter_time, self.cfg.max_collectd_timediff, fetcherindex, fetcher)
+            logger.warning("Collectd time %s and reportd time %s differ more then %s on fetcher %d %s", collectd_time,
+                           reportd_time, self.cfg.max_collectd_timediff, fetcherindex, fetcher)
         # Protocol line 3: available day
         available_day = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         if available_day != day:
@@ -1472,7 +1472,7 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
 
 def tlsrpt_fetcher_main():
     """
-    Runs the fetcher main. The fetcher is used by the TLSRPT-reporter to
+    Runs the fetcher main. The fetcher is used by the TLSRPT-reportd to
     read the database entries that were written by the collectd.
     """
     # TLSRPT-fetcher is tightly coupled to TLSRPT-collectd and uses its config and database
@@ -1505,26 +1505,26 @@ def tlsrpt_fetcher_main():
         fetcher.fetch_domain_details(day, domain)
 
 
-def tlsrpt_reporter_main():
+def tlsrpt_reportd_main():
     """
-    Entry point to the reporter main. The reporter is the part that finally
+    Entry point to the reportd main. The reportd is the part that finally
     sends the STMP TLS reports out the endpoints that the other MTA operators
     have published.
     """
 
-    (configvars, params, sources) = options_from_cmd_env_cfg(options_reporter, TLSRPTReporter.DEFAULT_CONFIG_FILE,
-                                                    TLSRPTReporter.CONFIG_SECTION, TLSRPTReporter.ENVIRONMENT_PREFIX,
+    (configvars, params, sources) = options_from_cmd_env_cfg(options_reportd, TLSRPTReportd.DEFAULT_CONFIG_FILE,
+                                                    TLSRPTReportd.CONFIG_SECTION, TLSRPTReportd.ENVIRONMENT_PREFIX,
                                                     {})
-    config = ConfigReporter(**configvars)
-    setup_logging(config.logfilename, config.log_level, "tlsrpt_reporter")
+    config = ConfigReportd(**configvars)
+    setup_logging(config.logfilename, config.log_level, "tlsrpt_reportd")
     log_config_info(logger, configvars, sources)
 
-    logger.info("TLSRPT reporter starting")
+    logger.info("TLSRPT reportd starting")
 
     with PidFile(config.pidfilename):
-        reporter = TLSRPTReporter(config)
-        reporter.run_loop()
+        reportd = TLSRPTReportd(config)
+        reportd.run_loop()
 
 
 if __name__ == "__main__":
-    print("Call tlsrpt fetcher, collectd or reporter instead of this file", file=sys.stderr)
+    print("Call tlsrpt fetcher, collectd or reportd instead of this file", file=sys.stderr)

@@ -1,28 +1,28 @@
-= tlsrpt-reporter(1)
+= tlsrpt-reportd(1)
 Boris Lohner
 v0.5.0
 :production-warning: This option must not be used on production systems!
 :doctype: manpage
-:manmanual: tlsrpt-reporter
-:mansource: tlsrpt-reporter
+:manmanual: tlsrpt-reportd
+:mansource: tlsrpt-reportd
 :man-linkstyle: pass:[blue R < >]
-:varpar-configsection: tlsrpt_reporter
-:varpar-daemonname: tlsrpt-reporter
-:varpar-environmentprefix: TLSRPT_REPORTER_
+:varpar-configsection: tlsrpt_reportd
+:varpar-daemonname: tlsrpt-reportd
+:varpar-environmentprefix: TLSRPT_REPORTD_
 
 == Name
 
-tlsrpt-reporter - A daemon to create and deliver TLSRPT reports according to RFC 8460.
+tlsrpt-reportd - A daemon to create and deliver TLSRPT reports according to RFC 8460.
 
 == Synopsis
 
-*tlsrpt-reporter* [_OPTION_]
+*tlsrpt-reportd* [_OPTION_]
 
 == Description
-The tlsrpt-reporter is the final component in the TLSRPT framework.
+The tlsrpt-reportd is the final component in the TLSRPT framework.
 A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt-collectd which collects and pre-aggregates the data.
-The tlsrpt-fetcher associated with a tlsrpt-collectd transfers the pre-aggregated data to the tlsrpt-reporter.
-The tlsrpt-reporter can retrieve data from multiple tlsrpt-fetchers and aggregates the pre-aggregated data into the final reports.
+The tlsrpt-fetcher associated with a tlsrpt-collectd transfers the pre-aggregated data to the tlsrpt-reportd.
+The tlsrpt-reportd can retrieve data from multiple tlsrpt-fetchers and aggregates the pre-aggregated data into the final reports.
 Those reports are gzip-compressed and sent out to the destinations as specified in the TLSRPT DNS records of the domains that have received emails from the MTA.
 
 A simple data flow diagram visualizing the interaction of the components looks like this:
@@ -36,7 +36,7 @@ A simple data flow diagram visualizing the interaction of the components looks l
     v
   tlsrpt-fetcher
     v
-  tlsrpt-reporter
+  tlsrpt-reportd
     v
   (report destination)
 
@@ -96,8 +96,8 @@ Maximum time to wait before retrying a failed report delivery attempt.
 === Options controlling the interaction with one or more tlsrpt-collectd
 
 *--max_collectd_timediff*=_sec_::
-Log a warning if the collectd clock reported by its fetcher differs by more than _sec_ seconds from the reporter´s clock.
-The reporter starts querying the fetchers _sec_ seconds after the UTC day change, so a clock difference bigger than _sec_ seconds indicates the collectd might not yet been ready to provide the complete data for the previous day.
+Log a warning if the collectd clock reported by its fetcher differs by more than _sec_ seconds from the reportd´s clock.
+The reportd starts querying the fetchers _sec_ seconds after the UTC day change, so a clock difference bigger than _sec_ seconds indicates the collectd might not yet been ready to provide the complete data for the previous day.
 
 *--max_collectd_timeout*=_sec_::
 Wait at most _sec_ seconds for a fetcher to finish a request for data from its collectd.
@@ -151,11 +151,11 @@ include::manpage-common-options.adoc[]
 
 Retrieve data from a local fetcher with standard configuration and from another local fetcher with a different storage:
 
-*tlsrpt-reporter --fetchers "tlsrpt-fetcher, tlsrpt-fetcher --storage sqlite:///tmp/test.sqlite"*
+*tlsrpt-reportd --fetchers "tlsrpt-fetcher, tlsrpt-fetcher --storage sqlite:///tmp/test.sqlite"*
 
 Retrieve data from a local fetcher and a remote fetcher:
 
-*tlsrpt-reporter --fetchers "tlsrpt-fetcher, ssh user@remote tlsrpt-fetcher"*
+*tlsrpt-reportd --fetchers "tlsrpt-fetcher, ssh user@remote tlsrpt-fetcher"*
 
 
 

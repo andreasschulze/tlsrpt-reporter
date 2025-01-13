@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: tlsrpt-reporter
+.\"     Title: tlsrpt-reportd
 .\"    Author: Boris Lohner
 .\" Generator: Asciidoctor 1.5.6.1
 .\"      Date: 2024-11-06
-.\"    Manual: tlsrpt-reporter
-.\"    Source: tlsrpt-reporter
+.\"    Manual: tlsrpt-reportd
+.\"    Source: tlsrpt-reportd
 .\"  Language: English
 .\"
-.TH "TLSRPT\-REPORTER" "1" "2024-11-06" "tlsrpt\-reporter" "tlsrpt\-reporter"
+.TH "TLSRPT\-REPORTD" "1" "2024-11-06" "tlsrpt\-reportd" "tlsrpt\-reportd"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -19,16 +19,16 @@
 .if \n[.g] .mso www.tmac
 .LINKSTYLE blue R < >
 .SH "NAME"
-tlsrpt\-reporter \- A daemon to create and deliver TLSRPT reports according to RFC 8460.
+tlsrpt\-reportd \- A daemon to create and deliver TLSRPT reports according to RFC 8460.
 .SH "SYNOPSIS"
 .sp
-\fBtlsrpt\-reporter\fP [\fIOPTION\fP]
+\fBtlsrpt\-reportd\fP [\fIOPTION\fP]
 .SH "DESCRIPTION"
 .sp
-The tlsrpt\-reporter is the final component in the TLSRPT framework.
+The tlsrpt\-reportd is the final component in the TLSRPT framework.
 A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt\-collectd which collects and pre\-aggregates the data.
-The tlsrpt\-fetcher associated with a tlsrpt\-collectd transfers the pre\-aggregated data to the tlsrpt\-reporter.
-The tlsrpt\-reporter can retrieve data from multiple tlsrpt\-fetchers and aggregates the pre\-aggregated data into the final reports.
+The tlsrpt\-fetcher associated with a tlsrpt\-collectd transfers the pre\-aggregated data to the tlsrpt\-reportd.
+The tlsrpt\-reportd can retrieve data from multiple tlsrpt\-fetchers and aggregates the pre\-aggregated data into the final reports.
 Those reports are gzip\-compressed and sent out to the destinations as specified in the TLSRPT DNS records of the domains that have received emails from the MTA.
 .sp
 A simple data flow diagram visualizing the interaction of the components looks like this:
@@ -42,7 +42,7 @@ A simple data flow diagram visualizing the interaction of the components looks l
     v
   tlsrpt\-fetcher
     v
-  tlsrpt\-reporter
+  tlsrpt\-reportd
     v
   (report destination)
 .SH "OPTIONS"
@@ -125,8 +125,8 @@ Maximum time to wait before retrying a failed report delivery attempt.
 .sp
 \fB\-\-max_collectd_timediff\fP=\fIsec\fP
 .RS 4
-Log a warning if the collectd clock reported by its fetcher differs by more than \fIsec\fP seconds from the reporter´s clock.
-The reporter starts querying the fetchers \fIsec\fP seconds after the UTC day change, so a clock difference bigger than \fIsec\fP seconds indicates the collectd might not yet been ready to provide the complete data for the previous day.
+Log a warning if the collectd clock reported by its fetcher differs by more than \fIsec\fP seconds from the reportd´s clock.
+The reportd starts querying the fetchers \fIsec\fP seconds after the UTC day change, so a clock difference bigger than \fIsec\fP seconds indicates the collectd might not yet been ready to provide the complete data for the previous day.
 .RE
 .sp
 \fB\-\-max_collectd_timeout\fP=\fIsec\fP
@@ -197,7 +197,7 @@ This option must not be used on production systems!
 .sp
 \fB\-\-config_file\fP=\fIfilename\fP
 .RS 4
-Read options from the section tlsrpt_reporter of the INI\-style configuration file \fIfilename\fP.
+Read options from the section tlsrpt_reportd of the INI\-style configuration file \fIfilename\fP.
 Environment variables override setings from the configurstion file and command line options override both.
 .RE
 .sp
@@ -208,7 +208,7 @@ Print a help message describing all options.
 .sp
 \fB\-\-pidfilename\fP=\fIpath\fP
 .RS 4
-Specifies the file that contains the process ID of the tlsrpt\-reporter daemon. An empty string will cause no PID file to be created.
+Specifies the file that contains the process ID of the tlsrpt\-reportd daemon. An empty string will cause no PID file to be created.
 .RE
 .SS "Logging options"
 .sp
@@ -224,17 +224,17 @@ Set log level to \fIlevel\fP, allowed values: debug, info, warn, error.
 .SH "ENVIRONMENT"
 .sp
 All config options except \-\-help and \-\-config_file can also be set via environment variables.
-The environment variable for a configuration option is the prefix TLSRPT_REPORTER_ followed by the configuration setting name in all caps.
-For example the \-\-log_level option can instead by configured using the TLSRPT_REPORTER_LOG_LEVEL environment variable.
+The environment variable for a configuration option is the prefix TLSRPT_REPORTD_ followed by the configuration setting name in all caps.
+For example the \-\-log_level option can instead by configured using the TLSRPT_REPORTD_LOG_LEVEL environment variable.
 .SH "EXAMPLES"
 .sp
 Retrieve data from a local fetcher with standard configuration and from another local fetcher with a different storage:
 .sp
-\fBtlsrpt\-reporter \-\-fetchers "tlsrpt\-fetcher, tlsrpt\-fetcher \-\-storage sqlite:///tmp/test.sqlite"\fP
+\fBtlsrpt\-reportd \-\-fetchers "tlsrpt\-fetcher, tlsrpt\-fetcher \-\-storage sqlite:///tmp/test.sqlite"\fP
 .sp
 Retrieve data from a local fetcher and a remote fetcher:
 .sp
-\fBtlsrpt\-reporter \-\-fetchers "tlsrpt\-fetcher, ssh user@remote tlsrpt\-fetcher"\fP
+\fBtlsrpt\-reportd \-\-fetchers "tlsrpt\-fetcher, ssh user@remote tlsrpt\-fetcher"\fP
 .SH "EXIT STATUS"
 .sp
 \fB0\fP

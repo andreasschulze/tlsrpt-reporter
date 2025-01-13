@@ -81,11 +81,11 @@ class MyTestCase(unittest.TestCase):
         """
         self.check_manpage_against_options("tlsrpt-fetcher", pytlsrpt.tlsrpt.ConfigFetcher, False)
 
-    def test_reporter_manpage(self):
+    def test_reportd_manpage(self):
         """
-        Check if manpage matches actual command line options for tlsrpt-reporter
+        Check if manpage matches actual command line options for tlsrpt-reportd
         """
-        self.check_manpage_against_options("tlsrpt-reporter", pytlsrpt.tlsrpt.ConfigReporter, True)
+        self.check_manpage_against_options("tlsrpt-reportd", pytlsrpt.tlsrpt.ConfigReportd, True)
 
 
 if __name__ == '__main__':

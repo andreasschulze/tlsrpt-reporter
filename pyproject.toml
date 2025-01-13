@@ -9,7 +9,7 @@ authors = [
   { name="sys4 AG", email="info@sys4.de" },
   { name="Boris Lohner", email="bl@sys4.de"},
 ]
-description = "Collectd, fetcher and reporter software for SMTP TLS reporting (TLSRPT)"
+description = "Collectd, fetcher and reportd software for SMTP TLS reporting (TLSRPT)"
 readme = "README.md"
 requires-python = ">=3.7"
 license = "GPL-3.0-or-later"
@@ -37,7 +37,7 @@ dev = [
 [project.scripts]
 tlsrpt-fetcher = "pytlsrpt.tlsrpt:tlsrpt_fetcher_main"
 tlsrpt-collectd = "pytlsrpt.tlsrpt:tlsrpt_collectd_main"
-tlsrpt-reporter = "pytlsrpt.tlsrpt:tlsrpt_reporter_main"
+tlsrpt-reportd = "pytlsrpt.tlsrpt:tlsrpt_reportd_main"
 
 [project.entry-points."tlsrpt.collectd"]
 sqlite = "pytlsrpt.tlsrpt:TLSRPTCollectdSQLite"

@@ -22,8 +22,8 @@ import os
 import sys
 
 from pytlsrpt.config import options_from_cmd_cfg_env
-from pytlsrpt.tlsrpt import ConfigCollectd, ConfigReporter, options_collectd, \
-    options_reporter, TLSRPTCollectd, TLSRPTFetcher, TLSRPTReporter, pospars_fetcher
+from pytlsrpt.tlsrpt import ConfigCollectd, ConfigReportd, options_collectd, \
+    options_reportd, TLSRPTCollectd, TLSRPTFetcher, TLSRPTReportd, pospars_fetcher
 
 class MyTestCase(unittest.TestCase):
     """
@@ -56,14 +56,14 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(config.log_level, "debug")
         self.assertEqual(config.logfilename, "/tmp/tlsrpt-fetcher.log")
 
-    def test_reporter_config(self):
-        (configvars, params, _) = options_from_cmd_cfg_env(options_reporter, TLSRPTReporter.DEFAULT_CONFIG_FILE,
-                                                        TLSRPTReporter.CONFIG_SECTION,
-                                                        TLSRPTReporter.ENVIRONMENT_PREFIX,
+    def test_reportd_config(self):
+        (configvars, params, _) = options_from_cmd_cfg_env(options_reportd, TLSRPTReportd.DEFAULT_CONFIG_FILE,
+                                                        TLSRPTReportd.CONFIG_SECTION,
+                                                        TLSRPTReportd.ENVIRONMENT_PREFIX,
                                                         {})
-        config = ConfigReporter(**configvars)
+        config = ConfigReportd(**configvars)
         self.assertEqual(config.log_level, "debug")
-        self.assertEqual(config.logfilename, "/tmp/tlsrpt-reporter.log")
+        self.assertEqual(config.logfilename, "/tmp/tlsrpt-reportd.log")
 
 
 if __name__ == '__main__':

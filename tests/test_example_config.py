@@ -22,8 +22,8 @@ import os
 import sys
 
 from pytlsrpt.config import options_from_cmd_cfg_env
-from pytlsrpt.tlsrpt import ConfigReceiver, ConfigReporter, options_collectd, \
-    options_reporter, TLSRPTReceiver, TLSRPTFetcher, TLSRPTReporter, pospars_fetcher
+from pytlsrpt.tlsrpt import ConfigCollectd, ConfigReporter, options_collectd, \
+    options_reporter, TLSRPTCollectd, TLSRPTFetcher, TLSRPTReporter, pospars_fetcher
 
 class MyTestCase(unittest.TestCase):
     """
@@ -38,11 +38,11 @@ class MyTestCase(unittest.TestCase):
         sys.argv.append(self.example_filename)
 
     def test_collectd_config(self):
-        (configvars, params, _) = options_from_cmd_cfg_env(options_collectd, TLSRPTReceiver.DEFAULT_CONFIG_FILE,
-                                                        TLSRPTReceiver.CONFIG_SECTION,
-                                                        TLSRPTReceiver.ENVIRONMENT_PREFIX,
+        (configvars, params, _) = options_from_cmd_cfg_env(options_collectd, TLSRPTCollectd.DEFAULT_CONFIG_FILE,
+                                                        TLSRPTCollectd.CONFIG_SECTION,
+                                                        TLSRPTCollectd.ENVIRONMENT_PREFIX,
                                                         {})
-        config = ConfigReceiver(**configvars)
+        config = ConfigCollectd(**configvars)
         self.assertEqual(config.log_level, "debug")
         self.assertEqual(config.logfilename, "/tmp/tlsrpt-collectd.log")
 
@@ -52,7 +52,7 @@ class MyTestCase(unittest.TestCase):
                                                         TLSRPTFetcher.CONFIG_SECTION,
                                                         TLSRPTFetcher.ENVIRONMENT_PREFIX,
                                                         pospars_fetcher)
-        config = ConfigReceiver(**configvars)
+        config = ConfigCollectd(**configvars)
         self.assertEqual(config.log_level, "debug")
         self.assertEqual(config.logfilename, "/tmp/tlsrpt-fetcher.log")
 

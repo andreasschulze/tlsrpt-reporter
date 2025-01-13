@@ -73,7 +73,7 @@ class MyTestCase(unittest.TestCase):
         """
         Check if manpages match actual command line options for tlsrpt-collectd
         """
-        self.check_manpage_against_options("tlsrpt-collectd", pytlsrpt.tlsrpt.ConfigReceiver, True)
+        self.check_manpage_against_options("tlsrpt-collectd", pytlsrpt.tlsrpt.ConfigCollectd, True)
 
     def test_fetcher_manpage(self):
         """

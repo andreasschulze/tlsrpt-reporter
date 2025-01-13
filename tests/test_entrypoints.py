@@ -35,8 +35,8 @@ class MyTestCase(unittest.TestCase):
         """
         Test existance and loadability of the defined plugin entrypoints
         """
-        self.plugin_entrypoint("tlsrpt.collectd", "sqlite:///tmp/test-collectd.sqlite", "TLSRPTReceiverSQLite")
-        self.plugin_entrypoint("tlsrpt.collectd", "dummy://", "DummyReceiver")
+        self.plugin_entrypoint("tlsrpt.collectd", "sqlite:///tmp/test-collectd.sqlite", "TLSRPTCollectdSQLite")
+        self.plugin_entrypoint("tlsrpt.collectd", "dummy://", "DummyCollectd")
         self.plugin_entrypoint("tlsrpt.fetcher", "sqlite:///tmp/test-collectd.sqlite", "TLSRPTFetcherSQLite")
 
 

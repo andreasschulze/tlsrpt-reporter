@@ -7,7 +7,7 @@ v0.5.0
 :man-linkstyle: pass:[blue R < >]
 :varpar-configsection: tlsrpt_collectd
 :varpar-daemonname: tlsrpt-collectd
-:varpar-environmentprefix: TLSRPT_RECEIVER_
+:varpar-environmentprefix: TLSRPT_COLLECTD_
 
 == Name
 

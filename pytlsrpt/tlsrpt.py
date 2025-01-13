@@ -50,7 +50,7 @@ DB_Purpose_Suffix = "-devel-2024-10-28"
 TLSRPT_FETCHER_VERSION_STRING_V1 = "TLSRPT FETCHER v1devel-c domain list"
 TLSRPT_TIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 TLSRPT_MAX_READ_FETCHER = 16*1024*1024
-TLSRPT_MAX_READ_RECEIVER = 16*1024*1024
+TLSRPT_MAX_READ_COLLECTD = 16*1024*1024
 
 # Exit codes
 EXIT_USAGE = 2  # argparse default
@@ -79,7 +79,7 @@ except AttributeError:
     pass
 
 
-ConfigReceiver = collections.namedtuple("ConfigReceiver",
+ConfigCollectd = collections.namedtuple("ConfigCollectd",
                                         ['storage',
                                          'socketname',
                                          'socketuser',
@@ -267,13 +267,13 @@ class PidFile:
             logger.warning("Error while removing pid-file %s: %s", self.filename, e)
 
 
-class TLSRPTReceiver(metaclass=ABCMeta):
+class TLSRPTCollectd(metaclass=ABCMeta):
     """
     Abstract base class for TLSRPT collectd implementations
     """
     DEFAULT_CONFIG_FILE = "/etc/tlsrpt/collectd.cfg"
     CONFIG_SECTION = "tlsrpt_collectd"
-    ENVIRONMENT_PREFIX = "TLSRPT_RECEIVER_"
+    ENVIRONMENT_PREFIX = "TLSRPT_COLLECTD_"
 
     @abstractmethod
     def add_datagram(self, datagram):
@@ -298,21 +298,21 @@ class TLSRPTReceiver(metaclass=ABCMeta):
         pass
 
     @staticmethod
-    def factory(url: str, config: ConfigReceiver):
+    def factory(url: str, config: ConfigCollectd):
         cls = plugins.get_plugin("tlsrpt.collectd", url)
         return cls(url, config)
 
 
-class DummyReceiver(TLSRPTReceiver):
+class DummyCollectd(TLSRPTCollectd):
     """
-    DummyReceiver only logs received datagrams.
+    DummyCollectd only logs received datagrams.
     This is used during development to test support for multiple collectds.
     """
 
-    def __init__(self, url: str, config: ConfigReceiver):
+    def __init__(self, url: str, config: ConfigCollectd):
         parsed = urllib.parse.urlparse(urllib.parse.unquote(url))
         if parsed.scheme != "dummy":
-            raise Exception(f"DummyReceiver can not be instantiated from '{url}'")
+            raise Exception(f"DummyCollectd can not be instantiated from '{url}'")
         dolog = (parsed.query == "log")
         self.dolog = dolog
 
@@ -391,11 +391,11 @@ class VersionedSQLite(metaclass=ABCMeta):
         pass
 
 
-class VersionedSQLiteReceiverBase(VersionedSQLite):
+class VersionedSQLiteCollectdBase(VersionedSQLite):
     def __init__(self, dbname):
         super().__init__(dbname)
     def _db_purpose(self):
-        return "TLSRPT-Receiver-DB" + DB_Purpose_Suffix
+        return "TLSRPT-Collectd-DB" + DB_Purpose_Suffix
 
     def _ddl(self):
         return ["CREATE TABLE finalresults(day, domain, tlsrptrecord, policy, cntrtotal, cntrfailure, its datetime default CURRENT_TIMESTAMP,"
@@ -408,15 +408,15 @@ class VersionedSQLiteReceiverBase(VersionedSQLite):
                 " VALUES(1,strftime('%Y-%m-%d %H-%M-%f','now'),'"+self._db_purpose()+"')"]
 
 
-class TLSRPTReceiverSQLite(TLSRPTReceiver, VersionedSQLiteReceiverBase):
-    def __init__(self, url: str, config: ConfigReceiver):
+class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
+    def __init__(self, url: str, config: ConfigCollectd):
         """
         :url str: URL defining the parameters for this reciever instance
-        :type config: ConfigReceiver
+        :type config: ConfigCollectd
         """
         parsed = urllib.parse.urlparse(urllib.parse.unquote(url))
         if parsed.scheme != "sqlite":
-            raise Exception(f"SQLiteReceiver can not be instantiated from '{url}'")
+            raise Exception(f"SQLiteCollectd can not be instantiated from '{url}'")
 
         self.cfg = config
         self.url = url
@@ -605,7 +605,7 @@ class TLSRPTFetcher(metaclass=ABCMeta):
         return cls(url, config)
 
 
-class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):
+class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteCollectdBase):
     """
     Fetcher class for SQLite collectd
     """
@@ -869,7 +869,7 @@ class TLSRPTReporter(VersionedSQLite):
         reporter_time = tlsrpt_utc_time_now()
         dt = reporter_time - collectd_time
         if abs(dt.total_seconds()) > self.cfg.max_collectd_timediff:
-            logger.warning("Receiver time %s and reporter time %s differ more then %s on fetcher %d %s", collectd_time,
+            logger.warning("Collectd time %s and reporter time %s differ more then %s on fetcher %d %s", collectd_time,
                            reporter_time, self.cfg.max_collectd_timediff, fetcherindex, fetcher)
         # Protocol line 3: available day
         available_day = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
@@ -1355,17 +1355,17 @@ def tlsrpt_collectd_main():
     receive TLSRPT datagrams from the MTA (e.g. Postfix). and writes the
     datagrams to the database.
     """
-    (configvars, params, sources) = options_from_cmd_env_cfg(options_collectd,  TLSRPTReceiver.DEFAULT_CONFIG_FILE,
-                                                    TLSRPTReceiver.CONFIG_SECTION, TLSRPTReceiver.ENVIRONMENT_PREFIX,
+    (configvars, params, sources) = options_from_cmd_env_cfg(options_collectd,  TLSRPTCollectd.DEFAULT_CONFIG_FILE,
+                                                    TLSRPTCollectd.CONFIG_SECTION, TLSRPTCollectd.ENVIRONMENT_PREFIX,
                                                     {})
-    config = ConfigReceiver(**configvars)
+    config = ConfigCollectd(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_collectd")
     log_config_info(logger, configvars, sources)
     with PidFile(config.pidfilename):
         tlsrpt_collectd_daemon(config)
 
 
-def tlsrpt_collectd_daemon(config: ConfigReceiver):
+def tlsrpt_collectd_daemon(config: ConfigCollectd):
     server_address = config.socketname
     logger.info("TLSRPT collectd starting")
     # Make sure the socket does not already exist
@@ -1412,7 +1412,7 @@ def tlsrpt_collectd_daemon(config: ConfigReceiver):
     # Multiple collectds to be set-up from configuration
     collectds = []
     for r in config.storage.split(","):
-        collectds.append(TLSRPTReceiver.factory(r, config))
+        collectds.append(TLSRPTCollectd.factory(r, config))
     if len(collectds) == 0:
         raise Exception("No collectd storage configured")
 
@@ -1443,7 +1443,7 @@ def tlsrpt_collectd_daemon(config: ConfigReceiver):
                         return 0
                 if key.fileobj == sock:
                     had_data += 1
-                    alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_RECEIVER)
+                    alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_COLLECTD)
                     j = json.loads(alldata)
                     for collectd in collectds:
                         try:

@@ -95,9 +95,9 @@ ConfigReceiver = collections.namedtuple("ConfigReceiver",
                                          'dump_path_for_invalid_datagram'])
 
 
-# Available command line options for the receiver
-options_receiver = {
-    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite",
+# Available command line options for the collectd
+options_collectd = {
+    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/collectd.sqlite",
                 "help": "Storage backend, multiple backends separated by comma"},
     "socketname": {"type": str, "default": "", "help": "Name of the unix domain socket to receive data"},
     "socketuser": {"type": str, "default": "", "help": "User owning the unix domain socket to receive data"},
@@ -108,8 +108,8 @@ options_receiver = {
                                  "help": "Commit after that many datagrams were received"},
     "retry_commit_datagram_count": {"type": int, "default": 1000,
                                     "help": "Retry commit after that many datagrams more were received"},
-    "pidfilename": {"type": str, "default": "", "help": "PID file name for receiver"},
-    "logfilename": {"type": str, "default": "/var/log/tlsrpt/receiver.log", "help": "Log file name for receiver"},
+    "pidfilename": {"type": str, "default": "", "help": "PID file name for collectd"},
+    "logfilename": {"type": str, "default": "/var/log/tlsrpt/collectd.log", "help": "Log file name for collectd"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
     "daily_rollover_script": {"type": str, "default": "", "help": "Hook script to run after day has changed"},
     "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": "Filename to save an invalid datagram"},
@@ -125,7 +125,7 @@ ConfigFetcher = collections.namedtuple("ConfigFetcher",
 
 # Available command line options for the fetcher
 options_fetcher = {
-    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/receiver.sqlite",
+    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/collectd.sqlite",
                 "help": "Storage backend, multiple backends separated by comma"},
     "logfilename": {"type": str, "default": "/var/log/tlsrpt/fetcher.log", "help": "Log file name for fetcher"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
@@ -159,8 +159,8 @@ ConfigReporter = collections.namedtuple("ConfigReporter",
                                          'sendmail_timeout',
                                          'spread_out_delivery',
                                          'interval_main_loop',
-                                         'max_receiver_timeout',
-                                         'max_receiver_timediff',
+                                         'max_collectd_timeout',
+                                         'max_collectd_timediff',
                                          'max_retries_delivery',
                                          'min_wait_delivery',
                                          'max_wait_delivery',
@@ -197,8 +197,8 @@ options_reporter = {
     "spread_out_delivery": {"type": int, "default": 36000,
                             "help": "Time range in seconds to spread out report delivery"},
     "interval_main_loop": {"type": int, "default": 300, "help": "Maximum sleep interval in main loop"},
-    "max_receiver_timeout": {"type": int, "default": 10, "help": "Maximum expected receiver timeout"},
-    "max_receiver_timediff": {"type": int, "default": 10, "help": "Maximum expected receiver time difference"},
+    "max_collectd_timeout": {"type": int, "default": 10, "help": "Maximum expected collectd timeout"},
+    "max_collectd_timediff": {"type": int, "default": 10, "help": "Maximum expected collectd time difference"},
     "max_retries_delivery": {"type": int, "default": 5, "help": "Maximum attempts to deliver a report"},
     "min_wait_delivery": {"type": int, "default": 300, "help": "Minimum time in seconds between two delivery attempts"},
     "max_wait_delivery": {"type": int, "default": 1800,
@@ -269,10 +269,10 @@ class PidFile:
 
 class TLSRPTReceiver(metaclass=ABCMeta):
     """
-    Abstract base class for TLSRPT receiver implementations
+    Abstract base class for TLSRPT collectd implementations
     """
-    DEFAULT_CONFIG_FILE = "/etc/tlsrpt/receiver.cfg"
-    CONFIG_SECTION = "tlsrpt_receiver"
+    DEFAULT_CONFIG_FILE = "/etc/tlsrpt/collectd.cfg"
+    CONFIG_SECTION = "tlsrpt_collectd"
     ENVIRONMENT_PREFIX = "TLSRPT_RECEIVER_"
 
     @abstractmethod
@@ -299,14 +299,14 @@ class TLSRPTReceiver(metaclass=ABCMeta):
 
     @staticmethod
     def factory(url: str, config: ConfigReceiver):
-        cls = plugins.get_plugin("tlsrpt.receiver", url)
+        cls = plugins.get_plugin("tlsrpt.collectd", url)
         return cls(url, config)
 
 
 class DummyReceiver(TLSRPTReceiver):
     """
     DummyReceiver only logs received datagrams.
-    This is used during development to test support for multiple receivers.
+    This is used during development to test support for multiple collectds.
     """
 
     def __init__(self, url: str, config: ConfigReceiver):
@@ -321,11 +321,11 @@ class DummyReceiver(TLSRPTReceiver):
 
     def add_datagram(self, datagram):
         if self.dolog:
-            logger.info("Dummy receiver got datagram %s", datagram)
+            logger.info("Dummy collectd got datagram %s", datagram)
 
     def socket_timeout(self):
         if self.dolog:
-            logger.info("Dummy receiver got socket timeout")
+            logger.info("Dummy collectd got socket timeout")
 
 
 class VersionedSQLite(metaclass=ABCMeta):
@@ -583,7 +583,7 @@ class TLSRPTFetcher(metaclass=ABCMeta):
     @abstractmethod
     def fetch_domain_list(self, day):
         """
-        List domains contained in this receiver database for a specific day
+        List domains contained in this collectd database for a specific day
         :param day: The day for which to create a report
         """
         pass
@@ -607,7 +607,7 @@ class TLSRPTFetcher(metaclass=ABCMeta):
 
 class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):
     """
-    Fetcher class for SQLite receiver
+    Fetcher class for SQLite collectd
     """
     def __init__(self, url: str, config: ConfigFetcher):
         """
@@ -629,7 +629,7 @@ class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteReceiverBase):
 
     def fetch_domain_list(self, day):
         """
-        List domains contained in this receiver database for a specific day
+        List domains contained in this collectd database for a specific day
         :param day: The day for which to create a report
         """
         logger.info("TLSRPT fetcher domain list starting for day %s", day)
@@ -862,15 +862,15 @@ class TLSRPTReporter(VersionedSQLite):
         if versionheader != TLSRPT_FETCHER_VERSION_STRING_V1:
             logger.error("Unsupported protocol version from fetcher %d '%s' :%s", fetcherindex, fetcher, versionheader)
             return False
-        # get current time of this receiver
-        receiver_time_string = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
-        receiver_time = datetime.datetime.strptime(receiver_time_string, TLSRPT_TIMEFORMAT). \
+        # get current time of this collectd
+        collectd_time_string = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
+        collectd_time = datetime.datetime.strptime(collectd_time_string, TLSRPT_TIMEFORMAT). \
             replace(tzinfo=datetime.timezone.utc)
         reporter_time = tlsrpt_utc_time_now()
-        dt = reporter_time - receiver_time
-        if abs(dt.total_seconds()) > self.cfg.max_receiver_timediff:
-            logger.warning("Receiver time %s and reporter time %s differ more then %s on fetcher %d %s", receiver_time,
-                           reporter_time, self.cfg.max_receiver_timediff, fetcherindex, fetcher)
+        dt = reporter_time - collectd_time
+        if abs(dt.total_seconds()) > self.cfg.max_collectd_timediff:
+            logger.warning("Receiver time %s and reporter time %s differ more then %s on fetcher %d %s", collectd_time,
+                           reporter_time, self.cfg.max_collectd_timediff, fetcherindex, fetcher)
         # Protocol line 3: available day
         available_day = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         if available_day != day:
@@ -1026,7 +1026,7 @@ class TLSRPTReporter(VersionedSQLite):
             for sfailure in failures:
                 fdet = {}
                 failure = json.loads(sfailure)
-                fdmap = {  # mapping of failure detail short keys from receiver to long keys conforming to RFC8460
+                fdmap = {  # mapping of failure detail short keys from collectd to long keys conforming to RFC8460
                     "a": "additional-information",
                     # "c": "failure-code",  # will be mapped via fcmap below
                     "f": "failure-reason-code",
@@ -1037,7 +1037,7 @@ class TLSRPTReporter(VersionedSQLite):
                 }
 
                 fcmap = {  # failure code map
-                    # maps integer numbers from the internal receiver protocol to result-types defined in RFC8460
+                    # maps integer numbers from the internal collectd protocol to result-types defined in RFC8460
                     # TLS negotiation failures
                     201: "starttls-not-supported",
                     202: "certificate-host-mismatch",
@@ -1058,7 +1058,7 @@ class TLSRPTReporter(VersionedSQLite):
                 for k in fdmap:
                     if k in failure:
                         fdet[fdmap[k]] = failure[k]
-                rtcode = "c"  # key for numeric result-type code in receiver data
+                rtcode = "c"  # key for numeric result-type code in collectd data
                 if rtcode in failure:
                     if failure[rtcode] in fcmap:
                         fdet["result-type"] = fcmap[failure[rtcode]]
@@ -1349,25 +1349,25 @@ def log_config_info(logger, configvars, sources):
         logger.info("CONFIG from %s option %s is %s",source_name[sources[k]], k, configvars[k])
 
 
-def tlsrpt_receiver_main():
+def tlsrpt_collectd_main():
     """
-    Contains the main TLSRPT receiver loop. This listens on a socket to
+    Contains the main TLSRPT collectd loop. This listens on a socket to
     receive TLSRPT datagrams from the MTA (e.g. Postfix). and writes the
     datagrams to the database.
     """
-    (configvars, params, sources) = options_from_cmd_env_cfg(options_receiver,  TLSRPTReceiver.DEFAULT_CONFIG_FILE,
+    (configvars, params, sources) = options_from_cmd_env_cfg(options_collectd,  TLSRPTReceiver.DEFAULT_CONFIG_FILE,
                                                     TLSRPTReceiver.CONFIG_SECTION, TLSRPTReceiver.ENVIRONMENT_PREFIX,
                                                     {})
     config = ConfigReceiver(**configvars)
-    setup_logging(config.logfilename, config.log_level, "tlsrpt_receiver")
+    setup_logging(config.logfilename, config.log_level, "tlsrpt_collectd")
     log_config_info(logger, configvars, sources)
     with PidFile(config.pidfilename):
-        tlsrpt_receiver_daemon(config)
+        tlsrpt_collectd_daemon(config)
 
 
-def tlsrpt_receiver_daemon(config: ConfigReceiver):
+def tlsrpt_collectd_daemon(config: ConfigReceiver):
     server_address = config.socketname
-    logger.info("TLSRPT receiver starting")
+    logger.info("TLSRPT collectd starting")
     # Make sure the socket does not already exist
     try:
         if os.path.exists(server_address):
@@ -1381,7 +1381,7 @@ def tlsrpt_receiver_daemon(config: ConfigReceiver):
 
     # Bind the socket to the port
     if server_address is None or server_address == "":
-        raise Exception("No receiver_socketname configured")
+        raise Exception("No collectd_socketname configured")
     logger.info("Listening on socket '%s'", server_address)
     sock.bind(server_address)
     sock.setblocking(False)
@@ -1409,12 +1409,12 @@ def tlsrpt_receiver_daemon(config: ConfigReceiver):
     except Exception as e:
         logger.error("Could not chmod socket %s to mode %s: %s", server_address, config.socketmode, e)
 
-    # Multiple receivers to be set-up from configuration
-    receivers = []
+    # Multiple collectds to be set-up from configuration
+    collectds = []
     for r in config.storage.split(","):
-        receivers.append(TLSRPTReceiver.factory(r, config))
-    if len(receivers) == 0:
-        raise Exception("No receiver storage configured")
+        collectds.append(TLSRPTReceiver.factory(r, config))
+    if len(collectds) == 0:
+        raise Exception("No collectd storage configured")
 
     sel = DefaultSelector()
     sel.register(interrupt_read, EVENT_READ)
@@ -1432,31 +1432,31 @@ def tlsrpt_receiver_daemon(config: ConfigReceiver):
                     signum = ord(signumb)
                     if signum == signal.SIGUSR2:
                         logger.info("Caught signal %d, enforce debug day roll-over for development", signum)
-                        for receiver in receivers:
-                            receiver.switch_to_next_day(develmode=True)
+                        for collectd in collectds:
+                            collectd.switch_to_next_day(develmode=True)
                     else:
                         logger.info("Caught signal %d, cleaning up", signum)
-                        for receiver in receivers:
-                            logger.info("Triggering socket timeout on receiver")
-                            receiver.socket_timeout()
+                        for collectd in collectds:
+                            logger.info("Triggering socket timeout on collectd")
+                            collectd.socket_timeout()
                         logger.info("Done")
                         return 0
                 if key.fileobj == sock:
                     had_data += 1
                     alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_RECEIVER)
                     j = json.loads(alldata)
-                    for receiver in receivers:
+                    for collectd in collectds:
                         try:
-                            receiver.add_datagram(j)
+                            collectd.add_datagram(j)
                         except KeyError as err:
                             logger.error("KeyError %s during processing datagram: %s", str(err), json.dumps(j))
                             raise err
             if had_data == 0:
-                for receiver in receivers:
-                    receiver.socket_timeout()
+                for collectd in collectds:
+                    collectd.socket_timeout()
         except socket.timeout:
-            for receiver in receivers:
-                receiver.socket_timeout()
+            for collectd in collectds:
+                collectd.socket_timeout()
         except OSError as err:
             logger.error("OS-Error: %s", str(err))
             raise
@@ -1473,9 +1473,9 @@ def tlsrpt_receiver_daemon(config: ConfigReceiver):
 def tlsrpt_fetcher_main():
     """
     Runs the fetcher main. The fetcher is used by the TLSRPT-reporter to
-    read the database entries that were written by the receiver.
+    read the database entries that were written by the collectd.
     """
-    # TLSRPT-fetcher is tightly coupled to TLSRPT-receiver and uses its config and database
+    # TLSRPT-fetcher is tightly coupled to TLSRPT-collectd and uses its config and database
     (configvars, params, sources) = options_from_cmd_env_cfg(options_fetcher, TLSRPTFetcher.DEFAULT_CONFIG_FILE,
                                                     TLSRPTFetcher.CONFIG_SECTION, TLSRPTFetcher.ENVIRONMENT_PREFIX,
                                                     pospars_fetcher)
@@ -1527,4 +1527,4 @@ def tlsrpt_reporter_main():
 
 
 if __name__ == "__main__":
-    print("Call tlsrpt fetcher, receiver or reporter instead of this file", file=sys.stderr)
+    print("Call tlsrpt fetcher, collectd or reporter instead of this file", file=sys.stderr)

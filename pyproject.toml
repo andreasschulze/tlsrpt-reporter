@@ -36,10 +36,10 @@ dev = [
 
 [project.scripts]
 tlsrpt-fetcher = "pytlsrpt.tlsrpt:tlsrpt_fetcher_main"
-tlsrpt-receiver = "pytlsrpt.tlsrpt:tlsrpt_receiver_main"
+tlsrpt-collectd = "pytlsrpt.tlsrpt:tlsrpt_collectd_main"
 tlsrpt-reporter = "pytlsrpt.tlsrpt:tlsrpt_reporter_main"
 
-[project.entry-points."tlsrpt.receiver"]
+[project.entry-points."tlsrpt.collectd"]
 sqlite = "pytlsrpt.tlsrpt:TLSRPTReceiverSQLite"
 dummy = "pytlsrpt.tlsrpt:DummyReceiver"
 

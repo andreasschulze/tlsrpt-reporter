@@ -25,7 +25,7 @@
 
 #define log(...) fprintf(stderr, __VA_ARGS__)
 
-#define SOCKET_NAME "/tmp/tlsrpt-receiver.socket"
+#define SOCKET_NAME "/tmp/tlsrpt-collectd.socket"
 
 #define SEND_MALFORMED_UTF8 0
 

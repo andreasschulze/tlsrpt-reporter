@@ -31,7 +31,7 @@ After an error occured, that delivery request cannot be recovered again and wonÂ
 In case of an error within a delivery request it is still mandatory to clean up by a call to `tlsrpt_finish_delivery_request` or `tlsrpt_cancel_delivery_request`, with the exception of `tlsrpt_init_delivery_request` which on error yields a `NULL` pointer instead of a pointer to an initialized `struct tlsrpt_dr`.
 
 If an error occurs after a successful call to `tlsrpt_init_delivery_request` it is safe to just keep on processing in case of errors until the final call to either `tlsrpt_finish_delivery_request` or `tlsrpt_cancel_delivery_request`.
-No data will be reported to the TLSRPT receiver due to the errors occured.
+No data will be reported to the TLSRPT collectd due to the errors occured.
 
 
 == API functions
@@ -46,7 +46,7 @@ Within a delivery request, failing to properly pair calls to `tlsrpt_init_policy
 
 === Connection handling
 
-The `struct tlsrpt_connection_t` object contains a socket and the destination socket address of the TLSRPT receiver.
+The `struct tlsrpt_connection_t` object contains a socket and the destination socket address of the TLSRPT collectd.
 It can be opened and close individually for a single delivery request, or it can be opened once at program start and re-used for many even concurrent delivery requests.
 
 Calls to `tlsrpt_open` and `tlsrpt_close` should be properly paired to avoid ressource leaks.
@@ -54,10 +54,10 @@ Calls to `tlsrpt_open` and `tlsrpt_close` should be properly paired to avoid res
 ==== `tlsrpt_open`
 Parameters:::
  struct tlsrpt_connection_t** pcon::  Address of the pointer that will point to the connection object
- const char* socketname:: The name of the TLSRPT receiver socket accepting datagrams from this library
+ const char* socketname:: The name of the TLSRPT collectd socket accepting datagrams from this library
 
 The function `tlsrpt_open` allocates and initializes the `struct tlsrpt_connection_t` object.
-This function creates the socket and initializes the destination socket address of the TLSRPT receiver.
+This function creates the socket and initializes the destination socket address of the TLSRPT collectd.
 There is no actual connection internally, the socket is a connection-less datagram socket.
 
 ==== `tlsrpt_close`
@@ -88,7 +88,7 @@ Parameters:::
  struct tlsrpt_dr_t** pdr::  Address of the pointer pointing to the delivery request to be finished and sent out
 
 The `tlsrpt_finish_delivery_request` function finishes the delivery request.
-`tlsrpt_finish_delivery_request` cleans up the ressources used by the delivery request `dr` and if no errors have occured sends it as a datagram to the TLSRPT receiver.
+`tlsrpt_finish_delivery_request` cleans up the ressources used by the delivery request `dr` and if no errors have occured sends it as a datagram to the TLSRPT collectd.
 It deallocates the `struct tlsrpt_dr_t` and sets *pdr to `NULL`.
 
 ==== `tlsrpt_cancel_delivery_request`
@@ -104,7 +104,7 @@ The function then calls `tlsrpt_finish_delivery_request`, which will do all the 
 
 Multiple policies can be part of one delivery request and can have different results provided in their `tlsrpt_finish_policy` calls.
 One delivery request can fail according to one policy but still be successful according to a different policy.
-Finishing a delivery request without any policies at all is considered an error and no datagram will be reported to the TLSRPT receiver.
+Finishing a delivery request without any policies at all is considered an error and no datagram will be reported to the TLSRPT collectd.
 
 Policies can not be nested!
 Calling `tlsrpt_init_policy` a second time without a call to `tlsrpt_finish_policy` inbetween will result in `TLSRPT_ERR_TLSRPT_NESTEDPOLICY`.

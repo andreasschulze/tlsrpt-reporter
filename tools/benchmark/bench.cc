@@ -32,7 +32,7 @@ namespace po=boost::program_options;
 
 #define log(...) fprintf(stderr, __VA_ARGS__)
 
-#define SOCKET_NAME "/tmp/tlsrpt-receiver.socket"
+#define SOCKET_NAME "/tmp/tlsrpt-collectd.socket"
 
 // Settings
 int secrampup;  // Seconds fo ramp-up to determine base rate as maximum throughput with blocking sockets

@@ -28,9 +28,9 @@ tlsrpt\-collectd \- A daemon collecting TLSRPT report data from MTA instances vi
 The tlsrpt\-collectd collects data from MTAs about successful encrypted delivery of emails or about failures that occured during delivery attempts.
 The data is pre\-aggregated and will be retrieved by matching tlsrpt\-fetchers.
 .sp
-Tlsrpt\-collectds can use different storage back\-ends and for each such implementation a matching fetcher implementation must be provided if the data is to be used by a tlsrpt\-reporter.
+Tlsrpt\-collectds can use different storage back\-ends and for each such implementation a matching fetcher implementation must be provided if the data is to be used by a tlsrpt\-reportd.
 .sp
-It is also possible to implement storage backends that are not queried by a tlsrpt\-reporter.
+It is also possible to implement storage backends that are not queried by a tlsrpt\-reportd.
 Such "storage" back\-ends would just collect the data for analyzing purposes, but would not provide measn to retrieve the data again.
 .SH "OPTIONS"
 .sp
@@ -81,7 +81,7 @@ Retrying only every \fIn\fP datagrams reduces the time waiting for such timeouts
 \fB\-\-daily_rollover_script\fP=\fIscript\fP
 .RS 4
 If this option is set, \fIscript\fP will be run after midnight UTC has passed and maintenance steps were performed.
-This can be useful to push the collectd database to some other place in setups where a remote TLSRPT\-collectd cannot be easily queried from the TLSRPT\-reporter but the TLSRPT\-collectd can push data to the TLSRPT\-reporter.
+This can be useful to push the collectd database to some other place in setups where a remote TLSRPT\-collectd cannot be easily queried from the TLSRPT\-reportd but the TLSRPT\-collectd can push data to the TLSRPT\-reportd.
 .RE
 .sp
 \fB\-\-dump_path_for_invalid_datagram\fP=\fIpath\fP
@@ -151,7 +151,7 @@ Run tlsrpt\-collectd with a special config file and ovverride the setting of log
 \fBtlsrpt\-collectd \-\-config\-file /path/to/config.cfg \-\-log_level info\fP
 .SH "SEE ALSO"
 .sp
-\fBtlsrpt\-fetcher\fP(1), \fBtlsrpt\-reporter\fP(1)
+\fBtlsrpt\-fetcher\fP(1), \fBtlsrpt\-reportd\fP(1)
 .SH "AUTHOR(S)"
 .sp
 \fBBoris Lohner\fP

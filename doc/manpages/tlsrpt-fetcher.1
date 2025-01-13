@@ -19,22 +19,22 @@
 .if \n[.g] .mso www.tmac
 .LINKSTYLE blue R < >
 .SH "NAME"
-tlsrpt\-fetcher \- The data transfer agent to bring TLSRPT report data from the tlsrpt\-collectd to the tlsrpt\-reporter.
+tlsrpt\-fetcher \- The data transfer agent to bring TLSRPT report data from the tlsrpt\-collectd to the tlsrpt\-reportd.
 .SH "SYNOPSIS"
 .sp
 \fBtlsrpt\-fetcher\fP [\fIOPTION\fP] \fIDAY\fP [\fIDOMAIN\fP]
 .SH "DESCRIPTION"
 .sp
-The tlsrpt\-fetcher is called by the tlsrpt\-reporter to collect the pre\-aggregated data from tlsrpt\-collectds.
+The tlsrpt\-fetcher is called by the tlsrpt\-reportd to collect the pre\-aggregated data from tlsrpt\-collectds.
 The data retrieval is done in two steps.
 .sp
-In the first step, the reporter asks for a list of domains for which data was collected.
+In the first step, the reportd asks for a list of domains for which data was collected.
 .sp
-In this step the reporter first checks if the tlsrpt\-fetcher supports a matching protocol version in case future versions will use a different protocol.
+In this step the reportd first checks if the tlsrpt\-fetcher supports a matching protocol version in case future versions will use a different protocol.
 The fetcher\-protocol version is therefore the first line.
 .sp
 The second line is the current time of the tlsrpt\-collectd/tlsrpt\-fetcher bundle.
-If the time differs too much from the time of the tlsrpt\-reporter a warning is given that the data may not be completely processed.
+If the time differs too much from the time of the tlsrpt\-reportd a warning is given that the data may not be completely processed.
 .sp
 The following lines are the domains, one domain per line.
 The end of the list is signalled by a line containing just one single "."
@@ -101,7 +101,7 @@ Fetch report details for domain example.com for the day of 2001\-02\-03:
 \fBtlsrpt\-fetcher 2001\-02\-03 example.com\fP
 .SH "SEE ALSO"
 .sp
-\fBtlsrpt\-collectd\fP(1), \fBtlsrpt\-reporter\fP(1)
+\fBtlsrpt\-collectd\fP(1), \fBtlsrpt\-reportd\fP(1)
 .SH "AUTHOR(S)"
 .sp
 \fBBoris Lohner\fP

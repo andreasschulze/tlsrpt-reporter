@@ -21,4 +21,4 @@
 from pytlsrpt import tlsrpt
 
 if __name__ == '__main__':
-    tlsrpt.tlsrpt_reporter_main()
+    tlsrpt.tlsrpt_reportd_main()

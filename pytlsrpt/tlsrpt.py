@@ -781,20 +781,20 @@ class TLSRPTReportd(VersionedSQLite):
         cur = self.con.cursor()
         cur.execute("DELETE FROM fetchjobs WHERE julianday(?)-julianday(day)>?", (now, limit))
         d = cur.rowcount
-        if d>0:
+        if d > 0:
             logger.info("Deleted %d old fetchjobs", d)
         cur.execute("DELETE FROM reportdata WHERE julianday(?)-julianday(day)>?", (now, limit))
         d = cur.rowcount
-        if d>0:
+        if d > 0:
             logger.info("Deleted %d old reportdata", d)
         cur.execute("DELETE FROM destinations WHERE d_r_id in (SELECT r_id FROM reports "
                     "WHERE julianday(?)-julianday(day)>?)", (now, limit))
         d = cur.rowcount
-        if d>0:
+        if d > 0:
             logger.info("Deleted %d old destinations", d)
         cur.execute("DELETE FROM reports WHERE julianday(?)-julianday(day)>?", (now, limit))
         d = cur.rowcount
-        if d>0:
+        if d > 0:
             logger.info("Deleted %d old reports", d)
 
     def check_day(self):
@@ -1106,7 +1106,6 @@ class TLSRPTReportd(VersionedSQLite):
 
         for tlsrptrecord in reports:
             rawreport = reports[tlsrptrecord]
-            report_domain = dom
             report_start_datetime = tlsrpt_report_start_datetime(day)
             report_end_datetime = tlsrpt_report_end_datetime(day)
             report = {"organization-name": self.cfg.organization_name,
@@ -1346,7 +1345,7 @@ def log_config_info(logger, configvars, sources):
     source_name = {"c": "cmd", "f": "cfg", "e": "env", "d": "def"}
     logger.info("CONFIGURATION with %d settings:", len(configvars))
     for k in configvars.keys():
-        logger.info("CONFIG from %s option %s is %s",source_name[sources[k]], k, configvars[k])
+        logger.info("CONFIG from %s option %s is %s", source_name[sources[k]], k, configvars[k])
 
 
 def tlsrpt_collectd_main():
@@ -1355,9 +1354,10 @@ def tlsrpt_collectd_main():
     receive TLSRPT datagrams from the MTA (e.g. Postfix). and writes the
     datagrams to the database.
     """
-    (configvars, params, sources) = options_from_cmd_env_cfg(options_collectd,  TLSRPTCollectd.DEFAULT_CONFIG_FILE,
-                                                    TLSRPTCollectd.CONFIG_SECTION, TLSRPTCollectd.ENVIRONMENT_PREFIX,
-                                                    {})
+    (configvars, params, sources) = options_from_cmd_env_cfg(options_collectd, TLSRPTCollectd.DEFAULT_CONFIG_FILE,
+                                                             TLSRPTCollectd.CONFIG_SECTION,
+                                                             TLSRPTCollectd.ENVIRONMENT_PREFIX,
+                                                             {})
     config = ConfigCollectd(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_collectd")
     log_config_info(logger, configvars, sources)
@@ -1386,14 +1386,14 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
     sock.bind(server_address)
     sock.setblocking(False)
     # adjust socket user/group
-    kwargs={}
-    kwargs["path"]=server_address
+    kwargs = {}
+    kwargs["path"] = server_address
     if config.socketuser is not None and config.socketuser != "":
         kwargs["user"] = config.socketuser
     if config.socketgroup is not None and config.socketgroup != "":
         kwargs["group"] = config.socketgroup
     try:
-        if len(kwargs)>1:  # we have at least one of user and group
+        if len(kwargs) > 1:  # we have at least one of user and group
             logger.info("Chmoding socket %s", str(kwargs))
             shutil.chown(**kwargs)
     except Exception as e:
@@ -1477,8 +1477,9 @@ def tlsrpt_fetcher_main():
     """
     # TLSRPT-fetcher is tightly coupled to TLSRPT-collectd and uses its config and database
     (configvars, params, sources) = options_from_cmd_env_cfg(options_fetcher, TLSRPTFetcher.DEFAULT_CONFIG_FILE,
-                                                    TLSRPTFetcher.CONFIG_SECTION, TLSRPTFetcher.ENVIRONMENT_PREFIX,
-                                                    pospars_fetcher)
+                                                             TLSRPTFetcher.CONFIG_SECTION,
+                                                             TLSRPTFetcher.ENVIRONMENT_PREFIX,
+                                                             pospars_fetcher)
     config = ConfigFetcher(**configvars)
 
     setup_logging(config.logfilename, config.log_level, "tlsrpt_fetcher")

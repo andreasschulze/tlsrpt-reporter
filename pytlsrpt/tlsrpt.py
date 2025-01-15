@@ -37,6 +37,7 @@ import sqlite3
 import urllib.error
 import urllib.parse
 import urllib.request
+import shlex
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +155,7 @@ ConfigReportd = collections.namedtuple("ConfigReportd",
                                          'contact_info',
                                          'sender_address',
                                          'compression_level',
+                                         'http_script',
                                          'http_timeout',
                                          'sendmail_script',
                                          'sendmail_timeout',
@@ -191,6 +193,9 @@ options_reportd = {
     "contact_info": {"type": str, "default": "", "help": "The contact information of the sending organization"},
     "sender_address": {"type": str, "default": "", "help": "The From: address to send the report email from"},
     "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},
+    "http_script": {"type": str,
+                    "default": "curl --silent --header 'Content-Type: application/tlsrpt+gzip' --data-binary @-",
+                    "help": "HTTP upload script"},
     "http_timeout": {"type": int, "default": 10, "help": "Timeout for HTTPS uploads"},
     "sendmail_script": {"type": str, "default": "sendmail -i -t", "help": "sendmail script"},
     "sendmail_timeout": {"type": int, "default": 10, "help": "Timeout for sendmail script"},
@@ -1138,12 +1143,30 @@ class TLSRPTReportd(VersionedSQLite):
             self.create_report_for(day, dom)
 
     def send_out_report_to_file(self, dom, d_r_id, destination, report, debugdir):
+        """
+        Save report to a local file for debugging
+        :param dom: the domain for which the reported was created
+        :param d_r_id: id of the report
+        :param destination: the destination the report is to be sent to
+        :param report: the report
+        :param debugdir: the directory where to create the file
+        """
         filename = debugdir + "/testreport-" + dom + "-" + str(d_r_id) + "-" + destination.replace("/", "_") + ".json"
         logger.debug("Would send out report %s to %s, saving to %s", str(d_r_id), destination, filename)
         with open(filename, "w") as file:
             file.write(report)
 
     def send_out_report_to_mail(self, day, dom, d_r_id, uniqid, destination, zreport):
+        """
+        Send out a report via email
+        :param day: the day the report was created for
+        :param dom: the domain for which the reported was created
+        :param d_r_id: id of the report
+        :param uniqid: unique id to distinguish multiple reports for the same day and domain
+        :param destination: the destination the report is to be sent to
+        :param zreport: the compressed report
+        :return: True if the smtp_script finished without errors, False otherwise
+        """
         # Check for debug override of destination
         dest = self.cfg.debug_send_mail_dest
         if dest is None or dest == "":
@@ -1194,32 +1217,50 @@ class TLSRPTReportd(VersionedSQLite):
             logger.error("Exception %s in sending report email to %s: %s", e.__class__.__name__, dest, e)
         return result
 
-    def send_out_report_to_http(self, dom, d_r_id, destination, zreport):
+    def send_out_report_to_http(self, destination, zreport):
+        """
+        Send out a report via HTTP(S)
+        :param destination: the destination the report is to be sent to
+        :param zreport: the compressed report
+        :return: True if the http_script finished without errors, False otherwise
+        """
         # Check for debug override of destination
         dest = self.cfg.debug_send_http_dest
         if dest is None or dest == "":
             dest = destination
         else:
             logger.warning("Overriding destination %s to %s", destination, dest)
-        # Post the report
-        headers = {"Content-Type": "application/tlsrpt+gzip"}
-        req = urllib.request.Request(dest, zreport, headers)
+
+        # Post the report using http_script
         try:
-            with urllib.request.urlopen(req, zreport, self.cfg.http_timeout) as response:
-                result = response.read()
-                logger.debug("Upload to '%s' successful: %s", destination, result)
+            script = self.cfg.http_script + " " + shlex.quote(dest)
+            logger.debug("Calling http_script %s", script)
+            proc = subprocess.Popen(script, shell=True, stdin=subprocess.PIPE, close_fds=True)
+            proc.stdin.write(zreport)
+            proc.stdin.close()
+            http_command_result = proc.wait(timeout=self.cfg.http_timeout)
+            if http_command_result == 0:
                 return True
-        except urllib.error.URLError as e:
-            logger.warning("Error in uploading to '%s': %s", destination, e)
-            return False
-        except socket.timeout as e:
-            logger.warning("Timeout after %d seconds in uploading to '%s': %s", self.cfg.http_timeout, destination, e)
-            return False
+            else:
+                logger.warning(f"HTTP command exit code {http_command_result}")
+        except subprocess.TimeoutExpired as e:
+            logger.error("Timeout after %d seconds uploading report to %s: %s", self.cfg.http_timeout, dest, e)
         except Exception as e:
-            logger.warning("Unexpected error in uploading to '%s': %s", destination, e)
-            return False
+            logger.error("Exception %s in uploading report to %s: %s", e.__class__.__name__, dest, e)
+        return False
 
     def send_out_report(self, day, dom, d_r_id, uniqid, destination, report):
+        """
+        Send out a report to one destination: HTTP(S) or SMTP.
+        If the debugdir option is configured an additional copy is saved to a local file.
+        :param day: the day the report was created for
+        :param dom: the domain for which the reported was created
+        :param d_r_id: id of the report
+        :param uniqid: unique id to distinguish multiple reports for the same day and domain
+        :param destination: the destination the report is to be sent to
+        :param report: the compressed report
+        :return: True if the delivery script finished without errors, False otherwise
+        """
         # Dump report as a file for debugging
         debugdir = self.cfg.debug_send_file_dest
         if debugdir is not None and debugdir != "":
@@ -1231,7 +1272,7 @@ class TLSRPTReportd(VersionedSQLite):
             destination = destination[7:]  # remove "mailto:" URL scheme
             return self.send_out_report_to_mail(day, dom, d_r_id, uniqid, destination, zreport)
         elif destination.startswith("https:"):
-            return self.send_out_report_to_http(dom, d_r_id, destination, zreport)
+            return self.send_out_report_to_http(destination, zreport)
         else:
             raise IndexError("Unknown protocol in report destination '%s'", destination)
 

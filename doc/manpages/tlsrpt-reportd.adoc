@@ -79,6 +79,10 @@ Use the script _path_ to send a TLSRPT report via email.
 *--sendmail_timeout*=_sec_::
 Set timeout of _sec_ seconds for email requests to deliver reports.
 
+ 
+*--http_script*=_path_::
+Use the script _path_ to upload a TLSRPT report via HTTP(S).
+
 *--http_timeout*=_sec_::
 Set timeout of _sec_ seconds for HTTP POST requests to deliver reports.
 

@@ -59,6 +59,8 @@ EXIT_DB_SETUP_FAILURE = 3
 EXIT_WRONG_DB_VERSION = 4
 EXIT_SHUTDOWN_SOCKETCLOSE = 5
 EXIT_SHUTDOWN_COLLECTDPLUGIN = 6
+EXIT_SOCKET = 7
+EXIT_OTHER = 8
 
 # Keyboard interrupt and signal handling
 interrupt_read, interrupt_write = socket.socketpair()
@@ -227,8 +229,11 @@ options_reportd = {
 
 
 def setup_logging(filename, level, component_name):
+    handlers = [logging.StreamHandler()]
+    if filename != "":
+        handlers.append(logging.FileHandler(filename))
     logging.basicConfig(format="%(asctime)s " + component_name + " %(levelname)s %(module)s %(lineno)s : %(message)s",
-                        level=logging.NOTSET, handlers=[logging.StreamHandler(), logging.FileHandler(filename)])
+                        level=logging.NOTSET, handlers=handlers)
     numeric_level = getattr(logging, level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError("Invalid log level: %s" % level)
@@ -700,6 +705,10 @@ class TLSRPTFetcherSQLite(TLSRPTFetcher, VersionedSQLiteCollectdBase):
         print(json.dumps(details, indent=4))
 
 
+class TLSRPTReportdSetupException(Exception):
+    pass
+
+
 class TLSRPTReportd(VersionedSQLite):
     """
     The TLSRPT reportd class
@@ -714,6 +723,15 @@ class TLSRPTReportd(VersionedSQLite):
         :type config: ConfigReportd
         """
         self.cfg = config
+        # Some config sanity checks
+        fetchers = self.get_fetchers()
+        if self.cfg.fetchers == "":
+            raise TLSRPTReportdSetupException("No fetchers setup")
+        for fetcher in fetchers:
+            if fetcher.strip() == "":
+                raise TLSRPTReportdSetupException("Empty fetcher configured")
+
+        # Proceed with startup
         super().__init__(self.cfg.dbname)
         self.curtoupdate = self.con.cursor()
         self.randPoolDelivery = randpool.RandPool(self.cfg.spread_out_delivery)
@@ -1408,9 +1426,16 @@ def tlsrpt_collectd_main():
     config = ConfigCollectd(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_collectd")
     log_config_info(logger, configvars, sources)
-    exitcode = 1
+    exitcode = EXIT_OTHER
     with PidFile(config.pidfilename):
-        exitcode = tlsrpt_collectd_daemon(config)
+        try:
+            exitcode = tlsrpt_collectd_daemon(config)
+        except Exception as e:
+            logger.error("Exception in tlsrpt_collectd_daemon: %s", e)
+    if exitcode != 0:
+        logger.error("process terminates with exit code %s", exitcode)
+    else:
+        logger.info("process terminates with exit code %s", exitcode)
     exit(exitcode)
 
 def remove_datagram_socket(server_address, when):
@@ -1424,7 +1449,6 @@ def remove_datagram_socket(server_address, when):
             os.unlink(server_address)
     except OSError as err:
         logger.error("Failed to remove existing socket %s during %s: %s", server_address, when, err)
-        raise
 
 def tlsrpt_collectd_daemon(config: ConfigCollectd):
     """
@@ -1438,14 +1462,24 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
     remove_datagram_socket(server_address, "startup")
 
     # Create a Unix Domain Socket
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    except Exception as e:
+        logger.error("Error creating socket: %s", e)
+        return EXIT_SOCKET
 
     # Bind the socket to the port
     if server_address is None or server_address == "":
-        raise Exception("No collectd_socketname configured")
+        logger.error("No collectd_socketname configured")
+        return EXIT_USAGE
     logger.info("Listening on socket '%s'", server_address)
-    sock.bind(server_address)
-    sock.setblocking(False)
+    try:
+        sock.bind(server_address)
+        sock.setblocking(False)
+    except Exception as e:
+        logger.error("Error binding socket: %s", e)
+        return EXIT_SOCKET
+
     # adjust socket user/group
     kwargs = {}
     kwargs["path"] = server_address
@@ -1473,9 +1507,11 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
     # Multiple collectds to be set-up from configuration
     collectds = []
     for r in config.storage.split(","):
-        collectds.append(TLSRPTCollectd.factory(r, config))
+        if r != "":
+            collectds.append(TLSRPTCollectd.factory(r, config))
     if len(collectds) == 0:
-        raise Exception("No collectd storage configured")
+        logger.error("No collectd storage configured")
+        return EXIT_USAGE
 
     sel = DefaultSelector()
     sel.register(interrupt_read, EVENT_READ)
@@ -1522,7 +1558,6 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
                             collectd.add_datagram(j)
                         except KeyError as err:
                             logger.error("KeyError %s during processing datagram: %s", str(err), json.dumps(j))
-                            raise err
             if had_data == 0:
                 for collectd in collectds:
                     collectd.socket_timeout()
@@ -1594,9 +1629,25 @@ def tlsrpt_reportd_main():
 
     logger.info("TLSRPT reportd starting")
 
+    exitcode = EXIT_OTHER
     with PidFile(config.pidfilename):
-        reportd = TLSRPTReportd(config)
-        reportd.run_loop()
+        try:
+            reportd = TLSRPTReportd(config)
+            try:
+                exitcode = reportd.run_loop()
+            except Exception as e:
+                logger.error("Exception while running tlsrpt_reportd_daemon: %s", e)
+        except TLSRPTReportdSetupException as e:
+            logger.error("Setup error for tlsrpt_reportd_daemon: %s", e)
+        except Exception as e:
+            logger.error("Exception during setup of tlsrpt_reportd_daemon: %s", e)
+
+
+    if exitcode != 0:
+        logger.error("process terminates with exit code %s", exitcode)
+    else:
+        logger.info("process terminates with exit code %s", exitcode)
+    exit(exitcode)
 
 
 if __name__ == "__main__":

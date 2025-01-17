@@ -103,7 +103,7 @@ ConfigCollectd = collections.namedtuple("ConfigCollectd",
 
 # Available command line options for the collectd
 options_collectd = {
-    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/collectd.sqlite",
+    "storage": {"type": str, "default": "",
                 "help": "Storage backend, multiple backends separated by comma"},
     "socketname": {"type": str, "default": "", "help": "Name of the unix domain socket to receive data"},
     "socketuser": {"type": str, "default": "", "help": "User owning the unix domain socket to receive data"},
@@ -115,7 +115,7 @@ options_collectd = {
     "retry_commit_datagram_count": {"type": int, "default": 1000,
                                     "help": "Retry commit after that many datagrams more were received"},
     "pidfilename": {"type": str, "default": "", "help": "PID file name for collectd"},
-    "logfilename": {"type": str, "default": "/var/log/tlsrpt/collectd.log", "help": "Log file name for collectd"},
+    "logfilename": {"type": str, "default": "", "help": "Log file name for collectd"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
     "daily_rollover_script": {"type": str, "default": "", "help": "Hook script to run after day has changed"},
     "dump_path_for_invalid_datagram": {"type": str, "default": "", "help": "Filename to save an invalid datagram"},
@@ -131,9 +131,9 @@ ConfigFetcher = collections.namedtuple("ConfigFetcher",
 
 # Available command line options for the fetcher
 options_fetcher = {
-    "storage": {"type": str, "default": "sqlite:///var/lib/tlsrpt/collectd.sqlite",
+    "storage": {"type": str, "default": "",
                 "help": "Storage backend, multiple backends separated by comma"},
-    "logfilename": {"type": str, "default": "/var/log/tlsrpt/fetcher.log", "help": "Log file name for fetcher"},
+    "logfilename": {"type": str, "default": "", "help": "Log file name for fetcher"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
 }
 
@@ -182,7 +182,7 @@ ConfigReportd = collections.namedtuple("ConfigReportd",
 # Available command line options for the reportd
 options_reportd = {
     "pidfilename": {"type": str, "default": "", "help": "PID file name for reportd"},
-    "logfilename": {"type": str, "default": "/var/log/tlsrpt/reportd.log", "help": "Log file name for reportd"},
+    "logfilename": {"type": str, "default": "", "help": "Log file name for reportd"},
     "log_level": {"type": str, "default": "warn", "help": "Log level"},
     "debug_db": {"type": int, "default": 0, "help": "Enable database debugging"},
     "keep_days": {"type": int, "default": 10, "help": "Days to keep old data"},
@@ -190,8 +190,8 @@ options_reportd = {
     "debug_send_http_dest": {"type": str, "default": "", "help": "Post all mail reports to this server instead"},
     "debug_send_file_dest": {"type": str, "default": "",
                              "help": "Save all mail reports to this directory additionally"},
-    "dbname": {"type": str, "default": "/var/lib/tlsrpt/reportd.sqlite", "help": "Name of database file"},
-    "fetchers": {"type": str, "default": "/usr/bin/tlsrpt-fetcher",
+    "dbname": {"type": str, "default": "", "help": "Name of database file"},
+    "fetchers": {"type": str, "default": "",
                  "help": "Comma-separated list of fetchers to collect data"},
     "organization_name": {"type": str, "default": "",
                           "help": "The name of the organization sending out the TLSRPT reports"},

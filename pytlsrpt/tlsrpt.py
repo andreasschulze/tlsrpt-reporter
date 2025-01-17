@@ -57,6 +57,8 @@ TLSRPT_MAX_READ_COLLECTD = 16*1024*1024
 EXIT_USAGE = 2  # argparse default
 EXIT_DB_SETUP_FAILURE = 3
 EXIT_WRONG_DB_VERSION = 4
+EXIT_SHUTDOWN_SOCKETCLOSE = 5
+EXIT_SHUTDOWN_COLLECTDPLUGIN = 6
 
 # Keyboard interrupt and signal handling
 interrupt_read, interrupt_write = socket.socketpair()
@@ -66,18 +68,21 @@ def signalhandler(signum, frame):
     """
     Signal handler to intercept keyboard interrupt and other termination signals
     :param signum: signal number
-    :param frame:
-    :return:
+    :param frame: unused
     """
     interrupt_write.send(bytes([signum]))
 
 
-signal.signal(signal.SIGINT, signalhandler)
-signal.signal(signal.SIGTERM, signalhandler)
-try:
-    signal.signal(signal.SIGUSR2, signalhandler)  # only used for development to trigger day roll-over
-except AttributeError:
-    pass
+def setup_daemon_signalhandlers():
+    """
+    Setup signalhandlers to properly shutdown daemons on interrupt
+    """
+    signal.signal(signal.SIGINT, signalhandler)
+    signal.signal(signal.SIGTERM, signalhandler)
+    try:  # SIGUSR2 does not exist on all platforms
+        signal.signal(signal.SIGUSR2, signalhandler)  # only used for development to trigger day roll-over
+    except AttributeError:
+        pass
 
 
 ConfigCollectd = collections.namedtuple("ConfigCollectd",
@@ -1395,6 +1400,7 @@ def tlsrpt_collectd_main():
     receive TLSRPT datagrams from the MTA (e.g. Postfix). and writes the
     datagrams to the database.
     """
+    setup_daemon_signalhandlers()
     (configvars, params, sources) = options_from_cmd_env_cfg(options_collectd, TLSRPTCollectd.DEFAULT_CONFIG_FILE,
                                                              TLSRPTCollectd.CONFIG_SECTION,
                                                              TLSRPTCollectd.ENVIRONMENT_PREFIX,
@@ -1402,20 +1408,34 @@ def tlsrpt_collectd_main():
     config = ConfigCollectd(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_collectd")
     log_config_info(logger, configvars, sources)
+    exitcode = 1
     with PidFile(config.pidfilename):
-        tlsrpt_collectd_daemon(config)
+        exitcode = tlsrpt_collectd_daemon(config)
+    exit(exitcode)
 
-
-def tlsrpt_collectd_daemon(config: ConfigCollectd):
-    server_address = config.socketname
-    logger.info("TLSRPT collectd starting")
-    # Make sure the socket does not already exist
+def remove_datagram_socket(server_address, when):
+    """
+    Remove unix domain socket file.
+    :param server_address: The name of the unix domain socket to be removed from the filesystem
+    :param when: informational string  for logging to disinguish errors during startup from errors during shutdown
+    """
     try:
         if os.path.exists(server_address):
             os.unlink(server_address)
     except OSError as err:
-        logger.error("Failed to remove already existing socket %s: %s", server_address, err)
+        logger.error("Failed to remove existing socket %s during %s: %s", server_address, when, err)
         raise
+
+def tlsrpt_collectd_daemon(config: ConfigCollectd):
+    """
+    Daemon function for collectd to be run after configuration was setup
+    :param config: the ConfigCollectd for this daemon
+    :return: exitcode to be returned from the process, zero on successful termination
+    """
+    server_address = config.socketname
+    logger.info("TLSRPT collectd starting")
+    # Make sure the socket does not already exist
+    remove_datagram_socket(server_address, "startup")
 
     # Create a Unix Domain Socket
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
@@ -1477,11 +1497,22 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
                             collectd.switch_to_next_day(develmode=True)
                     else:
                         logger.info("Caught signal %d, cleaning up", signum)
+                        exitcode = 0
+                        try:
+                            sock.close()
+                            remove_datagram_socket(server_address, "shutdown")
+                        except Exception as e:  # catch all exceptions to avoid interrupting shutdown
+                            logger.error("Exception during shutdown: %s", e)
+                            exitcode = EXIT_SHUTDOWN_SOCKETCLOSE
                         for collectd in collectds:
                             logger.info("Triggering socket timeout on collectd")
-                            collectd.socket_timeout()
+                            try:
+                                collectd.socket_timeout()
+                            except Exception as e:  # catch all exceptions to avoid interrupting shutdown
+                                logger.error("Exception during shutdown: %s", e)
+                                exitcode = EXIT_SHUTDOWN_COLLECTDPLUGIN
                         logger.info("Done")
-                        return 0
+                        return exitcode
                 if key.fileobj == sock:
                     had_data += 1
                     alldata, srcaddress = sock.recvfrom(TLSRPT_MAX_READ_COLLECTD)
@@ -1553,7 +1584,7 @@ def tlsrpt_reportd_main():
     sends the STMP TLS reports out the endpoints that the other MTA operators
     have published.
     """
-
+    setup_daemon_signalhandlers()
     (configvars, params, sources) = options_from_cmd_env_cfg(options_reportd, TLSRPTReportd.DEFAULT_CONFIG_FILE,
                                                     TLSRPTReportd.CONFIG_SECTION, TLSRPTReportd.ENVIRONMENT_PREFIX,
                                                     {})

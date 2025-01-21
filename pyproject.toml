@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytlsrpt"
-version = "0.0.1"
+version = "0.5.0rc1"
 authors = [
   { name="sys4 AG", email="info@sys4.de" },
   { name="Boris Lohner", email="bl@sys4.de"},

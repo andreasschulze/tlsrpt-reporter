@@ -5,7 +5,7 @@
 :title-page:
 
 = TLSRPT for MTAs - API documentation of the C library
-Version 0.5.0-pre20240929
+Version 0.5.0
 2024-09-29
 
 == Error handling

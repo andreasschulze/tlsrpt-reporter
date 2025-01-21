@@ -37,7 +37,10 @@ def get_plugin(group, url):
     if sys.version_info[:2] >= (3, 10):
         eps = all_eps.select(group=group)
     else:
-        eps = all_eps[group]
+        try:
+            eps = all_eps[group]
+        except KeyError:
+            raise NoImplementationException(f"No entry points found for {group}")
     for ep in eps:
         if ep.name == parsed_url.scheme:
             return ep.load()

@@ -1435,7 +1435,7 @@ def tlsrpt_collectd_main():
         try:
             exitcode = tlsrpt_collectd_daemon(config)
         except Exception as e:
-            logger.error("Exception in tlsrpt_collectd_daemon: %s", e)
+            logger.error("Exception %s in tlsrpt_collectd_daemon: %s", e.__class__.__name__, e)
     if exitcode != 0:
         logger.error("process terminates with exit code %s", exitcode)
     else:

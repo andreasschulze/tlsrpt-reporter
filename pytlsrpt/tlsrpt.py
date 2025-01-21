@@ -134,7 +134,8 @@ ConfigFetcher = collections.namedtuple("ConfigFetcher",
 # Available command line options for the fetcher
 options_fetcher = {
     "storage": {"type": str, "default": "",
-                "help": "Storage backend, multiple backends separated by comma"},
+                "help": "Storage backend, multiple backends separated by comma. "
+                        "Note: only the first storage will be used to fetch data from!"},
     "logfilename": {"type": str, "default": "", "help": "Log file name for fetcher"},
     "log_level": {"type": str, "default": "warn", "help": "Choose log level: debug, info, warning, error, critical"},
 }
@@ -1598,7 +1599,12 @@ def tlsrpt_fetcher_main():
     log_config_info(logger, configvars, sources, warnings)
 
     # Fetcher uses the first configured storage
-    url = config.storage.split(",")[0]
+    # To be consistent with collectd the storage parameter is parsed in the same way, but fetcher ignores
+    # and warns about additional storage being configured
+    urls = config.storage.split(",")
+    url = urls.pop(0)
+    for ignored_url in urls:
+        logger.warning("Ignoring additional storage: %s", ignored_url)
     try:
         fetcher = TLSRPTFetcher.factory(url, config)
     except Exception as e:

@@ -63,6 +63,9 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
     # remove the added parameter from the results
     user_config_file = ocmd.pop("config_file", None)
 
+    # accumulate warnings to be returned
+    warnings = []
+
     # ocfg: options from config file
     config_file = default_config_file
     if user_config_file is not None:
@@ -95,6 +98,12 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
         ek = envprefix + k.upper()  # environment-key: option "--key" becomes "PREFIX_KEY" as environment variable
         if ek in os.environ:
             oenv[k] = options[k]["type"](os.environ[ek])
+    # check for invalid options from environment, but report them only as warnings
+    for e in os.environ:
+        if e.startswith(envprefix):
+            ek = e.replace(envprefix,"",1).lower()
+            if ek not in options:
+                warnings.append(f"'{ek}' is no valid config option to be configured by environment variable {e}")
 
     # odef: options from defaults
     # While cmd and cfg and env need to be type converted from strings, the default values don´t need type conversion.
@@ -113,7 +122,7 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
                 tmp = src[k]
                 sources[k] = sourcekey
         result[k] = tmp
-    return result, params, sources
+    return result, params, sources, warnings
 
 
 def options_from_cmd_cfg_env(options: dict, default_config_file: str, config_section: str, envprefix: str,

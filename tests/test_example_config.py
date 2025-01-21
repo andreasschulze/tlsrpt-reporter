@@ -38,7 +38,7 @@ class MyTestCase(unittest.TestCase):
         sys.argv.append(self.example_filename)
 
     def test_collectd_config(self):
-        (configvars, params, _) = options_from_cmd_cfg_env(options_collectd, TLSRPTCollectd.DEFAULT_CONFIG_FILE,
+        (configvars, params, _, _) = options_from_cmd_cfg_env(options_collectd, TLSRPTCollectd.DEFAULT_CONFIG_FILE,
                                                         TLSRPTCollectd.CONFIG_SECTION,
                                                         TLSRPTCollectd.ENVIRONMENT_PREFIX,
                                                         {})
@@ -48,7 +48,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_fetcher_config(self):
         sys.argv.append("2000-01-01")  # add required parameter 'day'
-        (configvars, params, _) = options_from_cmd_cfg_env(options_collectd, TLSRPTFetcher.DEFAULT_CONFIG_FILE,
+        (configvars, params, _, _) = options_from_cmd_cfg_env(options_collectd, TLSRPTFetcher.DEFAULT_CONFIG_FILE,
                                                         TLSRPTFetcher.CONFIG_SECTION,
                                                         TLSRPTFetcher.ENVIRONMENT_PREFIX,
                                                         pospars_fetcher)
@@ -57,7 +57,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(config.logfilename, "/tmp/tlsrpt-fetcher.log")
 
     def test_reportd_config(self):
-        (configvars, params, _) = options_from_cmd_cfg_env(options_reportd, TLSRPTReportd.DEFAULT_CONFIG_FILE,
+        (configvars, params, _, _) = options_from_cmd_cfg_env(options_reportd, TLSRPTReportd.DEFAULT_CONFIG_FILE,
                                                         TLSRPTReportd.CONFIG_SECTION,
                                                         TLSRPTReportd.ENVIRONMENT_PREFIX,
                                                         {})

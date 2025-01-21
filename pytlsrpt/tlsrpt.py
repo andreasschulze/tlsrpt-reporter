@@ -1399,17 +1399,20 @@ class TLSRPTReportd(VersionedSQLite):
         return self.cfg.organization_name + "!" + dom + "!" + str(start) + "!" + str(end) + "!" + str(nr) + ".json.gz"
 
 
-def log_config_info(logger, configvars, sources):
+def log_config_info(logger, configvars, sources, warnings):
     """
     Log all configuration settings
     :param logger: the logger instance to use
     :param configvars: the dict containing the configuration values
     :param sources: the dict containing the sources form where the configuration was set
+    :param warnings: the warnings returned by the config parsers
     """
     source_name = {"c": "cmd", "f": "cfg", "e": "env", "d": "def"}
     logger.info("CONFIGURATION with %d settings:", len(configvars))
     for k in configvars.keys():
         logger.info("CONFIG from %s option %s is %s", source_name[sources[k]], k, configvars[k])
+    for w in warnings:
+        logger.warning(w)
 
 
 def tlsrpt_collectd_main():
@@ -1419,13 +1422,14 @@ def tlsrpt_collectd_main():
     datagrams to the database.
     """
     setup_daemon_signalhandlers()
-    (configvars, params, sources) = options_from_cmd_env_cfg(options_collectd, TLSRPTCollectd.DEFAULT_CONFIG_FILE,
-                                                             TLSRPTCollectd.CONFIG_SECTION,
-                                                             TLSRPTCollectd.ENVIRONMENT_PREFIX,
-                                                             {})
+    (configvars, params, sources, warnings) = options_from_cmd_env_cfg(options_collectd,
+                                                                       TLSRPTCollectd.DEFAULT_CONFIG_FILE,
+                                                                       TLSRPTCollectd.CONFIG_SECTION,
+                                                                       TLSRPTCollectd.ENVIRONMENT_PREFIX,
+                                                                       {})
     config = ConfigCollectd(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_collectd")
-    log_config_info(logger, configvars, sources)
+    log_config_info(logger, configvars, sources, warnings)
     exitcode = EXIT_OTHER
     with PidFile(config.pidfilename):
         try:
@@ -1583,14 +1587,15 @@ def tlsrpt_fetcher_main():
     read the database entries that were written by the collectd.
     """
     # TLSRPT-fetcher is tightly coupled to TLSRPT-collectd and uses its config and database
-    (configvars, params, sources) = options_from_cmd_env_cfg(options_fetcher, TLSRPTFetcher.DEFAULT_CONFIG_FILE,
-                                                             TLSRPTFetcher.CONFIG_SECTION,
-                                                             TLSRPTFetcher.ENVIRONMENT_PREFIX,
-                                                             pospars_fetcher)
+    (configvars, params, sources, warnings) = options_from_cmd_env_cfg(options_fetcher,
+                                                                       TLSRPTFetcher.DEFAULT_CONFIG_FILE,
+                                                                       TLSRPTFetcher.CONFIG_SECTION,
+                                                                       TLSRPTFetcher.ENVIRONMENT_PREFIX,
+                                                                       pospars_fetcher)
     config = ConfigFetcher(**configvars)
 
     setup_logging(config.logfilename, config.log_level, "tlsrpt_fetcher")
-    log_config_info(logger, configvars, sources)
+    log_config_info(logger, configvars, sources, warnings)
 
     # Fetcher uses the first configured storage
     url = config.storage.split(",")[0]
@@ -1620,12 +1625,14 @@ def tlsrpt_reportd_main():
     have published.
     """
     setup_daemon_signalhandlers()
-    (configvars, params, sources) = options_from_cmd_env_cfg(options_reportd, TLSRPTReportd.DEFAULT_CONFIG_FILE,
-                                                    TLSRPTReportd.CONFIG_SECTION, TLSRPTReportd.ENVIRONMENT_PREFIX,
-                                                    {})
+    (configvars, params, sources, warnings) = options_from_cmd_env_cfg(options_reportd,
+                                                                       TLSRPTReportd.DEFAULT_CONFIG_FILE,
+                                                                       TLSRPTReportd.CONFIG_SECTION,
+                                                                       TLSRPTReportd.ENVIRONMENT_PREFIX,
+                                                                       {})
     config = ConfigReportd(**configvars)
     setup_logging(config.logfilename, config.log_level, "tlsrpt_reportd")
-    log_config_info(logger, configvars, sources)
+    log_config_info(logger, configvars, sources, warnings)
 
     logger.info("TLSRPT reportd starting")
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#    Copyright (C) 2024 sys4 AG
+#    Copyright (C) 2024-2025 sys4 AG
 #    Author Boris Lohner bl@sys4.de
 #
 #    This program is free software: you can redistribute it and/or modify

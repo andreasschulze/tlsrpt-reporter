@@ -1,64 +1,33 @@
 # tlsrpt
-A set of libraries and tools to implement TLSRPT reporting into an MTA and to generate and submit TLSRPT reports.
 
+The keyword TLSRPT refers to an IETF Standard for SMTP TLS Reporting as defined
+in [RFC 8460](https://datatracker.ietf.org/doc/html/rfc8460). SMTP TLS
+Reporting standardizes informing other mail platforms of successes and failures
+establishing a SMTP TLS session between a sending and a receiving MTA. It helps
+to find out if a receiving (e.g. your) platform has issues regarding TLS or if
+the sending platform runs into TLS problems (i.e. Machine-in-the-Middle attack,
+STARTTLS downgrade) while it tries to establish a TLS protected session with a
+receiver.
 
-# How to build and install the TLSRPT C library
+This project provides a C library and a TLSRPT Reporting Service to assist in
+reporting SMTP TLS issues. The [libtlsrpt/REAMDE.md](libtlsrpt) C Library is
+meant to be included and used by a MTA in order to send out TLSRPT relevant
+datagrams to a TLSRPT Reporting Service. The [tlsrpt/README.md](TLSRPT Reporting
+Service) receives, collects, generates and delivers TLSRPT reports.
 
-Instructions how to build and install libtlsrpt can be found in [libtlsrpt/INSTALL](libtlsrpt/INSTALL).
+The tlsrpt project is a joint effort between the
+[https://www.postfix.org/](Postfix project), namely Wietse Venema who
+co-designed and implemented TLSRPT with the help of `libtlsrpt` into Postfix,
+and [https://sys4.de](sys4), who sponsored the project and whose team has put
+love and efforts to make this happen.
 
+We want secure communications and we want people to feel free to communicate
+whatever they want to about on the Internet. TLSRPT provides the reporting to
+create visibilty about issues regarding secure communications. Use it! It's
+[LICENSE](free).
 
-# How to setup the virtual environment for Python
-
-Clone this repository and chdir into to the root directory of the repository:
-
-```
-git clone https://github.com/sys4/tlsrpt.git
-cd tlsrpt
-```
-
-Then create a new virtual environment (venv) for Python using the following command:
-
-```
-python3 -m venv venv
-```
-
-You have to do this only once. After this, the `venv` directory is created that contains
-the files of the Python venv.
-
-Activate the venv by typing the shell command
-
-```
-source venv/bin/activate
-```
-
-This should change the shell prompt, you should now see a `(venv)` in front of the shell prompt
-as long as the venv is activated.
-
-Inside the activated venv you can now install everything that is needed for development and testing
-with this command:
-
-```
-python -m pip install ".[test]"
-```
-
-This will install both the dependencies of the `tlsrpt` package as well as any testing tools (e.g. `tox`)
-that are necessary for running automated tests.
-
-
-# Running the unit tests manually
-
-To run the unit tests manually on the console, first activate the venv (if not already activated) and the
-run the tests:
-
-```
-$ source venv/bin/activate
-(venv) $ python -m unittest discover
-
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.000s
-
-OK
-```
-
+Start a discussion or create a ticket on GitHub if you have specific questions
+about the software provided by the project and / or join the
+[https://list.sys4.de/postorius/lists/tlsrpt.list.sys4.de/](TLSRPT mailing list)
+for general discussions on TLSRPT but also about this project.
 

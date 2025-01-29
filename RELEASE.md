@@ -1,8 +1,8 @@
-# Description of the Release Process 
+# Releasing the Python tools on PyPI
 
-## Releasing the Python tools on PyPI
+Description of the release process.
 
-1. Create a new releas branch: `$ git checkout -n "release/v1.2.3"`
+1. Create a new release branch: `$ git checkout -n "release/v1.2.3"`
 2. Bump the version number in `pyproject.toml`
 3. Install the package and the dev dependencies in a local virtualenv:
   * `$ python -m venv .venv`
@@ -13,5 +13,4 @@
 5. Send packages to Test PyPI: `python3 -m twine upload --repository testpypi dist/*`
   * You need to enter your API key in order to finish this operation
   * Notice: this command will upload to the test instance of PyPI (test.pypi.org).
-
 

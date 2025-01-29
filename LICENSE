@@ -1,3 +1,1 @@
-The TLSRPT tools are released under the GNU General Public License (GPL) version 3 or later (see pytlsrpt/COPYING for the license terms).
-
-The TLSRPT C library in the "libtlsrpt" subdirectory is released under the GNU Lesser General Public License (LGPL) version 3 or later (see libtlsrpt/COPYING.LESSER for the license terms).
+The TLSRPT tools are released under the GNU General Public License (GPL) version 3 or later (see COPYING for the license terms).

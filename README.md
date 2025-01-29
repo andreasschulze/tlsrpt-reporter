@@ -1,33 +1,118 @@
-# tlsrpt
+# tlsrpt-reporter
 
-The keyword TLSRPT refers to an IETF Standard for SMTP TLS Reporting as defined
-in [RFC 8460](https://datatracker.ietf.org/doc/html/rfc8460). SMTP TLS
-Reporting standardizes informing other mail platforms of successes and failures
-establishing a SMTP TLS session between a sending and a receiving MTA. It helps
-to find out if a receiving (e.g. your) platform has issues regarding TLS or if
-the sending platform runs into TLS problems (i.e. Machine-in-the-Middle attack,
-STARTTLS downgrade) while it tries to establish a TLS protected session with a
-receiver.
+tlsrpt-reporter is a TLSRPT reporting service for SMTP TLS Reporting as defined
+in [RFC 8460](https://www.rfc-editor.org/rfc/rfc8460). It receives TLSRPT
+datagrams from a MTA, collects them, creates a report in conformance with the
+TLSRPT [Reporting Schema](https://www.rfc-editor.org/rfc/rfc8460#section-4) and
+finally delivers the report either via `SMTP`, indirectly by submitting it to a
+local MTA which ultimately will be responsible for delivering the report, or
+directly via `HTTP POST`.
 
-This project provides a C library and a TLSRPT Reporting Service to assist in
-reporting SMTP TLS issues. The [libtlsrpt/REAMDE.md](libtlsrpt) C Library is
-meant to be included and used by a MTA in order to send out TLSRPT relevant
-datagrams to a TLSRPT Reporting Service. The [tlsrpt/README.md](TLSRPT Reporting
-Service) receives, collects, generates and delivers TLSRPT reports.
 
-The tlsrpt project is a joint effort between the
-[https://www.postfix.org/](Postfix project), namely Wietse Venema who
-co-designed and implemented TLSRPT with the help of `libtlsrpt` into Postfix,
-and [https://sys4.de](sys4), who sponsored the project and whose team has put
-love and efforts to make this happen.
+## Application Architecture
+
+Mail platform architectures range from single all-in one servers to multi-server
+deployments with different server groups handling dedicated tasks. The TLSRPT
+reporting service's application architecture consists of three different
+programs which allow to provide TLSRPT reporting in simple but also in complex
+mail service architectures.
+
+- `tlsrpt_collectd`\
+  `tlsrpt_collectd` receives and collects TLSRPT datagrams from a MTA and
+  stores them locally in a sqlite database.
+- `tlsrpt_fetcher`\
+  `tlsrpt_fetcher` fetches TLSRPT datagrams collected by `tlsrpt_collectd`
+  directly or over the network via `SSH` and aggregates them into a single
+  database.
+- `tlsrpt_reportd`\
+  `tlsrpt_reportd` generates a TLSRPT report from the data provided by
+  `tlsrpt_fetcher` and submits the report.
+
+
+## Installation
+
+The following distributions provide packages for the TLSRPT reporting service:
+
+At the moment no distribution provides a package.
+
+
+## Development
+
+### How to setup the virtual environment for Python
+
+The TLSRPT Reporting Service has been written in Python. Setup a virtual
+environment like this:
+
+Clone this repository and chdir into to the root directory of the repository:
+
+```
+git clone https://github.com/sys4/tlsrpt.git
+cd tlsrpt
+```
+
+Create the new virtual `venv` environment using the following command:
+
+```
+python3 -m venv venv
+```
+
+After this initial step there will be a new `venv` directory within the `tlsrpt`
+directory containing all the file required to start and run the virtual
+environment. Activate the environment by typing this shell command:
+
+```
+source venv/bin/activate
+```
+
+This should change the shell prompt, you should now see a `(venv)` in front of
+the shell prompt. It will look like this as long as the venv is active.
+
+Finally you need to install additional software within the virtual environment
+in order to develop and test:
+
+```
+python -m pip install ".[test]"
+```
+
+This will satisfy the dependencies of the `tlsrpt` package and it will install
+testing tools (e.g. [tox](https://pypi.org/project/tox/)) required to run
+automated tests.
+
+
+#### Unit Testing
+
+In order to run the unit tests manually on the console, first activate the
+virtual environment. Then run the tests like this:
+
+```
+$ source venv/bin/activate
+(venv) $ python -m unittest discover
+
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+```
+
+
+## About the project
+
+The tlsrpt-reporter project is part of a joint effort between the [Postfix
+project](https://www.postfix.org), namely Wietse Venema who co-designed and
+implemented TLSRPT with the help of
+[libtlsrpt](https://github.com/sys4/libtlsrpt) into Postfix, and
+[sys4](https://sys4.de), who sponsored the project and whose team has put love
+and efforts into tlsrpt-reporter and
+[libtlsrpt](https://github.com/sys4/libtlsrpt) to make this happen.
 
 We want secure communications and we want people to feel free to communicate
 whatever they want to about on the Internet. TLSRPT provides the reporting to
 create visibilty about issues regarding secure communications. Use it! It's
-[LICENSE](free).
+[free](LICENSE).
 
 Start a discussion or create a ticket on GitHub if you have specific questions
 about the software provided by the project and / or join the
-[https://list.sys4.de/postorius/lists/tlsrpt.list.sys4.de/](TLSRPT mailing list)
+[TLSRPT mailing list](https://list.sys4.de/postorius/lists/tlsrpt.list.sys4.de/)
 for general discussions on TLSRPT but also about this project.
 

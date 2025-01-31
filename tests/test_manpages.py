@@ -44,7 +44,7 @@ class MyTestCase(unittest.TestCase):
         """
         documented = []
         for manpage_source in [manpage+".adoc", "manpage-common-options.adoc"]:
-            mpf = os.path.join(os.path.dirname(__file__), "..", "doc", "manpages", manpage_source)
+            mpf = os.path.join(os.path.dirname(__file__), "..", "doc", manpage_source)
             with open(mpf) as mp:
                 lines = mp.readlines()
                 for line in lines:

@@ -31,8 +31,8 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/sys4/tlsrpt"
-"Bug Tracker" = "https://github.com/sys4/tlsrpt/issues"
+"Homepage" = "https://github.com/sys4/tlsrpt-reporter"
+"Bug Tracker" = "https://github.com/sys4/tlsrpt-reporter/issues"
 
 [project.scripts]
 tlsrpt-fetcher = "tlsrpt.tlsrpt:tlsrpt_fetcher_main"

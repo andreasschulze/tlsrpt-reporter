@@ -890,7 +890,11 @@ class TLSRPTReportd(VersionedSQLite):
         duration = Duration()
         args = fetcher.split()
         args.append(day.__str__())
-        fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
+        try:
+            fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE)
+        except Exception as e:
+            logger.error("Could not collect domains from fetcher '%s': %s", fetcher, e.__str__())
+            return False
         versionheader = fetcherpipe.stdout.readline().decode('utf-8').rstrip()
         logger.debug("From fetcher %d got version header: %s", fetcherindex, versionheader)
         if versionheader != TLSRPT_FETCHER_VERSION_STRING_V1:

@@ -42,6 +42,16 @@ def parse_tlsrpt_record(tlsrpt_record):
     return ruas
 
 
+def normalize_domain_name(domain: str):
+    """
+    Normalize a domain name: transform to lower case and remove one single trailing dot
+    :param domain: domain name to be normalized
+    """
+    domain = domain.lower()
+    if domain.endswith(".") and not domain.endswith("..") and domain !=".":  # strip one single trailing dot
+        domain = domain[:-1]
+    return domain
+
 def make_yesterday_dbname(dbname):
     """
     Create name for the database to store data of the previous day

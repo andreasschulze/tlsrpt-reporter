@@ -534,6 +534,11 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
         :param tlsrptrecord: The tlsrpt DNS record
         :param policy: the policy dict
         """
+        # Normalize domain name
+        normalized_domain = normalize_domain_name(domain)
+        if normalized_domain != domain:
+            logger.debug("Normalized domain name '%s' to '%s'", domain, normalized_domain)
+            domain = normalized_domain
         # Remove unneeded keys from policy before writing to database, keeping needed values
         policy_failed = policy.pop("f")  # boolean defining success or failure as final result
         failures = policy.pop("failure-details", [])  # the failures encountered

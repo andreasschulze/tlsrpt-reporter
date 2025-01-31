@@ -21,6 +21,9 @@ venv/
 *.1
 *.3
 
+# release files
+dist/
+
 # MacOS
 .DS_Store
 

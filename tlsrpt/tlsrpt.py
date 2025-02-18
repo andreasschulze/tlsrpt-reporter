@@ -569,6 +569,10 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
         if "policies" not in datagram:
             logger.warning("No policies found in datagram: %s", datagram)
             return
+        if "dpv" not in datagram:
+            logger.debug("No datagram protocol version found in datagram: %s", datagram)
+        elif datagram["dpv"] != "1":
+            logger.error("Wrong datagram protocol version: Expected '1' but got '%s' in datagram: %s", datagram["dpv"], datagram)
         for policy in datagram["policies"]:
             self._add_policy(day, datagram["d"], datagram["pr"], policy)
 

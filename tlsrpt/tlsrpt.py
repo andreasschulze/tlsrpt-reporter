@@ -1652,17 +1652,23 @@ def tlsrpt_reportd_main():
     logger.info("TLSRPT reportd starting")
 
     exitcode = EXIT_OTHER
+    reportd = None
     with PidFile(config.pidfilename):
+        # Setup
         try:
             reportd = TLSRPTReportd(config)
-            try:
-                exitcode = reportd.run_loop()
-            except Exception as e:
-                logger.error("Exception while running tlsrpt_reportd_daemon: %s", e)
         except TLSRPTReportdSetupException as e:
             logger.error("Setup error for tlsrpt_reportd_daemon: %s", e)
         except Exception as e:
             logger.error("Exception during setup of tlsrpt_reportd_daemon: %s", e)
+        # Run
+        try:
+            if not reportd is None:
+                exitcode = reportd.run_loop()
+            else:
+                logger.info("Can not run reportd due to setup failure")
+        except Exception as e:
+            logger.error("Exception while running tlsrpt_reportd_daemon: %s", e)
 
 
     if exitcode != 0:

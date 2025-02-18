@@ -1499,7 +1499,7 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
     try:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     except Exception as e:
-        logger.error("Error creating socket: %s", e)
+        logger.error("Error %s while creating socket: %s", e.__class__.__name__, e)
         return EXIT_SOCKET
 
     # Bind the socket to the port
@@ -1511,7 +1511,7 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
         sock.bind(server_address)
         sock.setblocking(False)
     except Exception as e:
-        logger.error("Error binding socket: %s", e)
+        logger.error("Error %s while binding socket: %s", e.__class__.__name__, e)
         return EXIT_SOCKET
 
     # adjust socket user/group
@@ -1572,14 +1572,14 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
                             sock.close()
                             remove_datagram_socket(server_address, "shutdown")
                         except Exception as e:  # catch all exceptions to avoid interrupting shutdown
-                            logger.error("Exception during shutdown: %s", e)
+                            logger.error("Exception %s during shutdown: %s", e.__class__.__name__, e)
                             exitcode = EXIT_SHUTDOWN_SOCKETCLOSE
                         for collectd in collectds:
                             logger.info("Triggering socket timeout on collectd")
                             try:
                                 collectd.socket_timeout()
                             except Exception as e:  # catch all exceptions to avoid interrupting shutdown
-                                logger.error("Exception during shutdown: %s", e)
+                                logger.error("Exception %s during shutdown: %s", e.__class__.__name__, e)
                                 exitcode = EXIT_SHUTDOWN_COLLECTDPLUGIN
                         logger.info("Done")
                         return exitcode
@@ -1680,7 +1680,7 @@ def tlsrpt_reportd_main():
         except TLSRPTReportdSetupException as e:
             logger.error("Setup error for tlsrpt_reportd_daemon: %s", e)
         except Exception as e:
-            logger.error("Exception during setup of tlsrpt_reportd_daemon: %s", e)
+            logger.error("Exception %s during setup of tlsrpt_reportd_daemon: %s", e.__class__.__name__, e)
         # Run
         try:
             if not reportd is None:
@@ -1688,7 +1688,7 @@ def tlsrpt_reportd_main():
             else:
                 logger.info("Can not run reportd due to setup failure")
         except Exception as e:
-            logger.error("Exception while running tlsrpt_reportd_daemon: %s", e)
+            logger.error("Exception %s while running tlsrpt_reportd_daemon: %s", e.__class__.__name__, e)
 
 
     if exitcode != 0:

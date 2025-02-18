@@ -38,6 +38,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import shlex
+from enum import Enum, unique
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,17 @@ EXIT_SHUTDOWN_SOCKETCLOSE = 5
 EXIT_SHUTDOWN_COLLECTDPLUGIN = 6
 EXIT_SOCKET = 7
 EXIT_OTHER = 8
+
+
+@unique
+class DeliveryResult(Enum):
+    """
+    Results for report delivery
+    """
+    SUCCEEDED = 1
+    TRYAGAIN = 2
+    UNKNOWNRUA = 3
+
 
 # Keyboard interrupt and signal handling
 interrupt_read, interrupt_write = socket.socketpair()
@@ -1193,7 +1205,7 @@ class TLSRPTReportd(VersionedSQLite):
         with open(filename, "w") as file:
             file.write(report)
 
-    def send_out_report_to_mail(self, day, dom, d_r_id, uniqid, destination, zreport):
+    def send_out_report_to_mail(self, day, dom, d_r_id, uniqid, destination, zreport) -> DeliveryResult:
         """
         Send out a report via email
         :param day: the day the report was created for
@@ -1202,7 +1214,7 @@ class TLSRPTReportd(VersionedSQLite):
         :param uniqid: unique id to distinguish multiple reports for the same day and domain
         :param destination: the destination the report is to be sent to
         :param zreport: the compressed report
-        :return: True if the smtp_script finished without errors, False otherwise
+        :return: DeliveryResult.SUCCEEDED if the smtp_script finished without errors, TRYAGAIN otherwise
         """
         # Check for debug override of destination
         dest = self.cfg.debug_send_mail_dest
@@ -1237,7 +1249,6 @@ class TLSRPTReportd(VersionedSQLite):
         debugdir = self.cfg.debug_send_file_dest
         if debugdir is not None and debugdir != "":
             self.send_out_report_to_file(dom, d_r_id, "THE_EMAIL_TO_"+destination, reportemail, debugdir)
-        result = False
         try:
             logger.debug("Calling sendmail_script %s", self.cfg.sendmail_script)
             proc = subprocess.Popen(self.cfg.sendmail_script, shell=True, stdin=subprocess.PIPE, close_fds=True)
@@ -1245,21 +1256,21 @@ class TLSRPTReportd(VersionedSQLite):
             proc.stdin.close()
             mail_command_result = proc.wait(timeout=self.cfg.sendmail_timeout)
             if mail_command_result == 0:
-                return True
+                return DeliveryResult.SUCCEEDED
             else:
                 logger.warning(f"Mail command exit code {mail_command_result}")
         except subprocess.TimeoutExpired as e:
             logger.error("Timeout after %d seconds sending report email to %s: %s", self.cfg.sendmail_timeout, dest, e)
         except Exception as e:
             logger.error("Exception %s in sending report email to %s: %s", e.__class__.__name__, dest, e)
-        return result
+        return DeliveryResult.TRYAGAIN
 
-    def send_out_report_to_http(self, destination, zreport):
+    def send_out_report_to_http(self, destination, zreport) -> DeliveryResult:
         """
         Send out a report via HTTP(S)
         :param destination: the destination the report is to be sent to
         :param zreport: the compressed report
-        :return: True if the http_script finished without errors, False otherwise
+        :return: DeliveryResult.SUCCEEDED if the http_script finished without errors, TRYAGAIN otherwise
         """
         # Check for debug override of destination
         dest = self.cfg.debug_send_http_dest
@@ -1277,16 +1288,16 @@ class TLSRPTReportd(VersionedSQLite):
             proc.stdin.close()
             http_command_result = proc.wait(timeout=self.cfg.http_timeout)
             if http_command_result == 0:
-                return True
+                return DeliveryResult.SUCCEEDED
             else:
                 logger.warning(f"HTTP command exit code {http_command_result}")
         except subprocess.TimeoutExpired as e:
             logger.error("Timeout after %d seconds uploading report to %s: %s", self.cfg.http_timeout, dest, e)
         except Exception as e:
             logger.error("Exception %s in uploading report to %s: %s", e.__class__.__name__, dest, e)
-        return False
+        return DeliveryResult.TRYAGAIN
 
-    def send_out_report(self, day, dom, d_r_id, uniqid, destination, report):
+    def send_out_report(self, day, dom, d_r_id, uniqid, destination, report) -> DeliveryResult:
         """
         Send out a report to one destination: HTTP(S) or SMTP.
         If the debugdir option is configured an additional copy is saved to a local file.
@@ -1296,7 +1307,7 @@ class TLSRPTReportd(VersionedSQLite):
         :param uniqid: unique id to distinguish multiple reports for the same day and domain
         :param destination: the destination the report is to be sent to
         :param report: the compressed report
-        :return: True if the delivery script finished without errors, False otherwise
+        :return: DeliveryResult.SUCCEEDED if the delivery script finished without errors, TRYAGAIN otherwise
         """
         # Dump report as a file for debugging
         debugdir = self.cfg.debug_send_file_dest
@@ -1311,7 +1322,8 @@ class TLSRPTReportd(VersionedSQLite):
         elif destination.startswith("https:"):
             return self.send_out_report_to_http(destination, zreport)
         else:
-            raise IndexError("Unknown protocol in report destination '%s'", destination)
+            logger.error("Unknown RUA scheme in report destination '%s'", destination)
+            return DeliveryResult.UNKNOWNRUA
 
     def send_out_reports(self):
         """
@@ -1326,9 +1338,13 @@ class TLSRPTReportd(VersionedSQLite):
             "LEFT JOIN reports on r_id=d_r_id WHERE destinations.status IS NULL and nexttry<?", (now,))
         for (destination, d_r_id, uniqid, report, dom, day, retries) in cur:
             logger.info("Report delivery %d for domain %s succeeded in run %d", d_r_id, dom, retries)
-            if self.send_out_report(day, dom, d_r_id, uniqid, destination, report):
+            deliveryresult = self.send_out_report(day, dom, d_r_id, uniqid, destination, report)
+            if deliveryresult == DeliveryResult.SUCCEEDED:
                 curu.execute("UPDATE destinations SET status='sent' WHERE destination=? AND d_r_id=?",
                              (destination, d_r_id))
+            elif deliveryresult != DeliveryResult.TRYAGAIN:
+                curu.execute("UPDATE destinations SET status=? WHERE destination=? AND d_r_id=?",
+                             (deliveryresult.name.lower(), destination, d_r_id))
             elif retries < self.cfg.max_retries_delivery:
                 logger.warning("Report delivery %d for domain %s failed in run %d", d_r_id, dom, retries)
                 curu.execute("UPDATE destinations SET retries=retries+1, nexttry=? WHERE destination=? AND d_r_id=?",

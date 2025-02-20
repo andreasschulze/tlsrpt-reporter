@@ -32,9 +32,9 @@ RUN    apt-get -y -qq update \
 FROM debian:bookworm-slim
 
 COPY --from=build /usr/local/ /usr/local/
-COPY docker/cmd /cmd
-COPY docker/entrypoint /entrypoint
-COPY docker/daily_rollover_script /usr/local/bin/
+COPY contrib/docker/cmd /cmd
+COPY contrib/docker/entrypoint /entrypoint
+COPY contrib/docker/daily_rollover_script /usr/local/bin/
 
 # hadolint ignore=DL3008
 RUN apt-get -y -qq update \

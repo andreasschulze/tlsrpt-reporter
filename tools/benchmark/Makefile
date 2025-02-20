@@ -28,11 +28,11 @@ endif
 
 CC=gcc
 DEBUG=-g
-CFLAGS += -Wall -I ../../libtlsrpt ${DEBUG} -O2 ${PTHREADCC}
+CFLAGS += -Wall -I ../../../libtlsrpt ${DEBUG} -O2 ${PTHREADCC}
 CXXFLAGS += ${CFLAGS} -fpermissive
 LDFLAGS += -Wall ${DEBUG} ${PTHREADLD} -lboost_program_options
 
-LDLIBS += ../../libtlsrpt/.libs/libtlsrpt.a
+LDLIBS += ../../../libtlsrpt/.libs/libtlsrpt.a
 
 ifeq ($(UNAME), FreeBSD)
 LDLIBS += /lib/libthr.so.3

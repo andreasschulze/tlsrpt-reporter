@@ -5,7 +5,7 @@
 ```sh
 git clone https://github.com/sys4/tlsrpt-reporter.git
 cd tlsrpt-reporter/
-docker-compose build
+docker-compose -f contrib/docker/docker-compose.yml build
 ```
 
 ## Running

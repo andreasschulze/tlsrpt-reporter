@@ -18,7 +18,7 @@
 #
 
 import unittest
-from tlsrpt import utility   # unit under test
+from tlsrpt_reporter import utility   # unit under test
 
 
 class MyTestCase(unittest.TestCase):

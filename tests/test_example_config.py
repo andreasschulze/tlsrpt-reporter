@@ -21,8 +21,8 @@ import unittest
 import os
 import sys
 
-from tlsrpt.config import options_from_cmd_cfg_env
-from tlsrpt.tlsrpt import ConfigCollectd, ConfigReportd, options_collectd, \
+from tlsrpt_reporter.config import options_from_cmd_cfg_env
+from tlsrpt_reporter.tlsrpt import ConfigCollectd, ConfigReportd, options_collectd, \
     options_reportd, TLSRPTCollectd, TLSRPTFetcher, TLSRPTReportd, pospars_fetcher
 
 class MyTestCase(unittest.TestCase):
@@ -33,7 +33,7 @@ class MyTestCase(unittest.TestCase):
     def setUp(self):
         sys.argv.clear()
         sys.argv.append("programname")
-        self.example_filename = os.path.join(os.path.dirname(__file__), "..", "tlsrpt" , "example.cfg")
+        self.example_filename = os.path.join(os.path.dirname(__file__), "..", "tlsrpt_reporter" , "example.cfg")
         sys.argv.append("--config_file")
         sys.argv.append(self.example_filename)
 

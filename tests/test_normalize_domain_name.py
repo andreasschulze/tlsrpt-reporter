@@ -18,7 +18,7 @@
 #
 
 import unittest
-from tlsrpt.utility import normalize_domain_name
+from tlsrpt_reporter.utility import normalize_domain_name
 
 class MyTestCase(unittest.TestCase):
     """

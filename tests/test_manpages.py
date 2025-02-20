@@ -18,7 +18,7 @@
 #
 
 import unittest
-import tlsrpt.tlsrpt
+import tlsrpt_reporter.tlsrpt
 import os
 
 
@@ -73,19 +73,19 @@ class MyTestCase(unittest.TestCase):
         """
         Check if manpages match actual command line options for tlsrpt-collectd
         """
-        self.check_manpage_against_options("tlsrpt-collectd", tlsrpt.tlsrpt.ConfigCollectd, True)
+        self.check_manpage_against_options("tlsrpt-collectd", tlsrpt_reporter.tlsrpt.ConfigCollectd, True)
 
     def test_fetcher_manpage(self):
         """
         Check if manpage matches actual command line options for tlsrpt-fetcher
         """
-        self.check_manpage_against_options("tlsrpt-fetcher", tlsrpt.tlsrpt.ConfigFetcher, False)
+        self.check_manpage_against_options("tlsrpt-fetcher", tlsrpt_reporter.tlsrpt.ConfigFetcher, False)
 
     def test_reportd_manpage(self):
         """
         Check if manpage matches actual command line options for tlsrpt-reportd
         """
-        self.check_manpage_against_options("tlsrpt-reportd", tlsrpt.tlsrpt.ConfigReportd, True)
+        self.check_manpage_against_options("tlsrpt-reportd", tlsrpt_reporter.tlsrpt.ConfigReportd, True)
 
 
 if __name__ == '__main__':

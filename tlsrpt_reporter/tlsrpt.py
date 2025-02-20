@@ -42,10 +42,10 @@ from enum import Enum, unique
 
 logger = logging.getLogger(__name__)
 
-from tlsrpt.utility import *
-from tlsrpt.config import options_from_cmd_env_cfg
-from tlsrpt import randpool
-from tlsrpt import plugins
+from tlsrpt_reporter.utility import *
+from tlsrpt_reporter.config import options_from_cmd_env_cfg
+from tlsrpt_reporter import randpool
+from tlsrpt_reporter import plugins
 
 # Constants
 DB_Purpose_Suffix = "-devel-2024-10-28"

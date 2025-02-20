@@ -18,7 +18,7 @@
 #
 
 import unittest
-import tlsrpt.randpool
+import tlsrpt_reporter.randpool
 
 
 class MyTestCase(unittest.TestCase):
@@ -42,7 +42,7 @@ class MyTestCase(unittest.TestCase):
         :param size: the size of the random pool to test
         """
         iterations = 5
-        randpool = tlsrpt.randpool.RandPool(size)
+        randpool = tlsrpt_reporter.randpool.RandPool(size)
         # initialize counters
         count = {}
         for i in range(0, size):

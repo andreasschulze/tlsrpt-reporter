@@ -18,7 +18,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 
-from tlsrpt import tlsrpt
+from tlsrpt_reporter import tlsrpt
 
 if __name__ == '__main__':
     tlsrpt.tlsrpt_reportd_main()

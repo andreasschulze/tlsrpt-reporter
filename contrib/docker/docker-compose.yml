@@ -1,7 +1,12 @@
+#
+# to build, go to the repository root directory and run
+# docker-compose -f contrib/docker/docker-compose.yml build
+#
 services:
   tlsrpt-reporter:
     build:
-      context: .
+      context: ../..
+      dockerfile: contrib/docker/Dockerfile
     image: localhost/tlsrpt-reporter
 
   tlsrpt-collectd:

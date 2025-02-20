@@ -4,7 +4,7 @@ WORKDIR /tmp
 
 COPY README.md ./
 COPY pyproject.toml ./
-COPY tlsrpt/ ./tlsrpt/
+COPY tlsrpt_reporter/ ./tlsrpt_reporter/
 COPY doc/ ./doc/
 
 # hadolint ignore=DL3008,DL4006

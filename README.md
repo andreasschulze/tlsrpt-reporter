@@ -46,8 +46,8 @@ environment like this:
 Clone this repository and chdir into to the root directory of the repository:
 
 ```
-git clone https://github.com/sys4/tlsrpt.git
-cd tlsrpt
+git clone https://github.com/sys4/tlsrpt-reporter.git
+cd tlsrpt-reporter
 ```
 
 Create the new virtual `venv` environment using the following command:
@@ -56,7 +56,7 @@ Create the new virtual `venv` environment using the following command:
 python3 -m venv venv
 ```
 
-After this initial step there will be a new `venv` directory within the `tlsrpt`
+After this initial step there will be a new `venv` directory within the `tlsrpt-reporter`
 directory containing all the file required to start and run the virtual
 environment. Activate the environment by typing this shell command:
 
@@ -74,7 +74,7 @@ in order to develop and test:
 python -m pip install ".[test]"
 ```
 
-This will satisfy the dependencies of the `tlsrpt` package and it will install
+This will satisfy the dependencies of the `tlsrpt-reporter` package and it will install
 testing tools (e.g. [tox](https://pypi.org/project/tox/)) required to run
 automated tests.
 

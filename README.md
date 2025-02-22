@@ -17,16 +17,13 @@ reporting service's application architecture consists of three different
 programs which allow to provide TLSRPT reporting in simple but also in complex
 mail service architectures.
 
-- `tlsrpt_collectd`\
-  `tlsrpt_collectd` receives and collects TLSRPT datagrams from a MTA and
+- `tlsrpt-collectd` receives and collects TLSRPT datagrams from a MTA and
   stores them locally in a sqlite database.
-- `tlsrpt_fetcher`\
-  `tlsrpt_fetcher` fetches TLSRPT datagrams collected by `tlsrpt_collectd`
+- `tlsrpt-fetcher` fetches TLSRPT datagrams collected by `tlsrpt-collectd`
   directly or over the network via `SSH` and aggregates them into a single
   database.
-- `tlsrpt_reportd`\
-  `tlsrpt_reportd` generates a TLSRPT report from the data provided by
-  `tlsrpt_fetcher` and submits the report.
+- `tlsrpt-reportd` generates a TLSRPT report from the data provided by
+  `tlsrpt-fetcher` and submits the report.
 
 
 ## Installation

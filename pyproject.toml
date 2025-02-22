@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "tlsrpt_reporter"
 version = "0.5.0"
 authors = [
-  { name="sys4 AG", email="info@sys4.de" },
+  { name="sys4 AG", email="tlsrpt@sys4.de" },
   { name="Boris Lohner", email="bl@sys4.de"},
 ]
 description = "Collectd, fetcher and reportd software for SMTP TLS reporting (TLSRPT)"

@@ -74,6 +74,16 @@ class DeliveryResult(Enum):
     UNKNOWNRUA = 3
 
 
+@unique
+class RolloverReason(Enum):
+    """
+    Reasons for database rollover
+    """
+    MIDNIGHT = 1
+    INITIALIZE = 2
+    MANUALLYINDUCED = 3
+
+
 # Keyboard interrupt and signal handling
 interrupt_read, interrupt_write = socket.socketpair()
 
@@ -319,9 +329,10 @@ class TLSRPTCollectd(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def switch_to_next_day(self, develmode=False):
+    def switch_to_next_day(self, rolloverreason):
         """
         Switch to next day after UTC-midnight
+        :param rolloverreason: reason for the database rollover
         """
         pass
 
@@ -344,7 +355,7 @@ class DummyCollectd(TLSRPTCollectd):
         dolog = (parsed.query == "log")
         self.dolog = dolog
 
-    def switch_to_next_day(self, develmode=False):
+    def switch_to_next_day(self, rolloverreason):
         pass
 
     def add_datagram(self, datagram):
@@ -466,26 +477,34 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
         else:
             logger.info("Create new database %s", self.dbname)
             self._setup_database()
+            self.switch_to_next_day(RolloverReason.INITIALIZE)  # prepare yesterday´s DB as well
 
         # Settings for flushing to disk
         self.commitEveryN = self.cfg.max_uncommited_datagrams
         self.next_commit = tlsrpt_utc_time_now()
 
-    def switch_to_next_day(self, develmode=False):
+    def switch_to_next_day(self, rolloverreason):
         """
         Switch to next day after UTC-midnight
+        :param rolloverreason: reason for the database rollover
         """
         yesterday = tlsrpt_utc_date_yesterday()
         commit_message = "Midnight UTC database rollover"
-        if develmode:
-            self.con.set_trace_callback(print)
+        if rolloverreason == RolloverReason.MANUALLYINDUCED:
             commit_message = commit_message + " FOR DEVELOPMENT"
+        elif rolloverreason == RolloverReason.INITIALIZE:
+            commit_message = commit_message + " FOR INITIALIZATION"
+        logger.info("Performing %s", commit_message)
+
+        if rolloverreason == RolloverReason.MANUALLYINDUCED:
+            self.con.set_trace_callback(print)  # show updates in this development-only if-branch
             self._db_commit(commit_message)
             self.cur.execute("UPDATE finalresults SET day=? WHERE day=?", (yesterday, self.today))
             logger.debug("Updated %d rows in finalresults", self.cur.rowcount)
             self.cur.execute("UPDATE failures SET day=? WHERE day=?", (yesterday, self.today))
             logger.debug("Updated %d rows in failuredetails", self.cur.rowcount)
             self.con.commit()
+
         self._db_commit(commit_message)
         # check for dangling day status
         self.cur.execute("SELECT daycomplete FROM daystatus")
@@ -508,7 +527,7 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
         os.rename(self.dbname, yesterdaydbname)
         # start new day
         self.today = tlsrpt_utc_date_now()
-        logger.info("Create new database %s", self.dbname)
+        logger.info("Old database moved to %s, create new database %s", yesterdaydbname, self.dbname)
         self.con = sqlite3.connect("file:///"+self.dbname, uri=True)
         self.cur = self.con.cursor()
         self.total_datagrams_read = 0
@@ -523,6 +542,7 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
                 args = script.split()
                 args.append(self.url)
                 args.append(yesterdaydbname)
+                logger.info("Starting daily rollover script '%s'", args)
                 subprocess.Popen(args)
             except Exception as e:
                 logger.error("Unexpected problem while starting daily rollover script '%s': %s", script, e)
@@ -612,7 +632,7 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
         # process the datagram
         datenow = tlsrpt_utc_date_now()
         if self.today != datenow:
-            self.switch_to_next_day()
+            self.switch_to_next_day(RolloverReason.MIDNIGHT)
         self._add_policies_from_datagram(datenow, datagram)
         # database maintenance
         self.uncommitted_datagrams += 1
@@ -625,7 +645,7 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
         """
         datenow = tlsrpt_utc_date_now()
         if self.today != datenow:
-            self.switch_to_next_day()
+            self.switch_to_next_day(RolloverReason.MIDNIGHT)
         self.timed_commit()
 
 
@@ -1584,7 +1604,7 @@ def tlsrpt_collectd_daemon(config: ConfigCollectd):
                     if signum == signal.SIGUSR2:
                         logger.info("Caught signal %d, enforce debug day roll-over for development", signum)
                         for collectd in collectds:
-                            collectd.switch_to_next_day(develmode=True)
+                            collectd.switch_to_next_day(RolloverReason.MANUALLYINDUCED)
                     else:
                         logger.info("Caught signal %d, cleaning up", signum)
                         exitcode = 0

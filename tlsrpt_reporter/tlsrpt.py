@@ -487,6 +487,17 @@ class TLSRPTCollectdSQLite(TLSRPTCollectd, VersionedSQLiteCollectdBase):
             logger.debug("Updated %d rows in failuredetails", self.cur.rowcount)
             self.con.commit()
         self._db_commit(commit_message)
+        # check for dangling day status
+        self.cur.execute("SELECT daycomplete FROM daystatus")
+        alldata = self.cur.fetchall()
+        has_dangling_daystatus = False
+        for row in alldata:
+            has_dangling_daystatus = True
+            logger.error("POTENTIAL ROLLOVER PROBLEM! Stale day status detected: %s", row)
+            break
+        if has_dangling_daystatus:
+            self.cur.execute("DELETE FROM daystatus;")
+        # set day status
         self.cur.execute("INSERT INTO daystatus (daycomplete)  VALUES(?)", (yesterday, ))
         self.con.commit()
         self.cur.close()

@@ -397,6 +397,15 @@ class VersionedSQLite(metaclass=ABCMeta):
             if version != 1:
                 logger.error("Database has wrong version, expected 1 but got %s", version)
                 sys.exit(EXIT_WRONG_DB_VERSION)
+            # test if database is read-write
+            try:
+                tmp_writetest = "tmp_writetest"
+                self.cur.execute("INSERT INTO dbversion(version, installdate, purpose) "
+                                 "VALUES(0,strftime('%Y-%m-%d %H-%M-%f','now'),?)", (tmp_writetest,))
+                self.cur.execute("DELETE FROM dbversion WHERE version=0 and purpose=?", (tmp_writetest,))
+            except Exception as e:
+                logger.error("Database error %s: %s", e.__class__.__name__, e)
+                sys.exit(EXIT_DB_SETUP_FAILURE)
             return True
         except Exception as err:
             logger.info("Database check failed: %s", err)

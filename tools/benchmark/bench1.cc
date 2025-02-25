@@ -48,7 +48,6 @@ const char* tlsrptrecs[]={"v=TLSRPTv1;rua=mailto:reports@example.com",
 #define CHECK if(res!=0) fprintf(stderr, "RESULT AT LINE %d IS %d : %s: %s\n" ,__LINE__, res, tlsrpt_strerror(res), strerror(tlsrpt_errno_from_error_code(res)));
 //#define CHECK 
 
-extern int dbgnumber;
 
 int main(int argc, char *argv[])
 {
@@ -72,7 +71,6 @@ int main(int argc, char *argv[])
 
   rate.start();
   while(runs==0 || i<runs) {
-    dbgnumber=i%16;
     char domain[1024];
     snprintf(domain,1023,"test-%d.example.com",i%domains);
     const char* _reason="Test with unusual characters: °äöüÄÖÜßJSONTEST!\"§$%&/()=?`'´\\<|>\\\t\b\f\n\x03\x04\x05";

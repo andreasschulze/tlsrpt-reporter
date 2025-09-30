@@ -99,13 +99,15 @@ Maximum time to wait before retrying a failed report delivery attempt.
 
 *--http_upload_map*=_path_::
 Load a transformation map for HTTPS report destinations from file _path_. 
+Cannot be used in combination with *--debug_send_http_dest*!
 
 *--mail_destination_map*=_path_::
 Load a transformation map for SMTP report destinations from file _path_.
+Cannot be used in combination with *--debug_send_mail_dest*!
 
 *--tlsrpt_record_map*=_path_::
 Load a transformation map for all report destinations based on the TLSRPT domain from file _path_.
-
+Cannot be used in combination with *--debug_send_file_dest*!
 
 === Options controlling the interaction with one or more tlsrpt-collectd
 
@@ -148,16 +150,21 @@ Control database debugging: 0 turns database debugging off, 1 activates logging 
 
 *--debug_send_file_dest*=_dir_::
 Save reports into directory _dir_ in addition to their delivery via email or HTTP POST requests.
+Cannot be used in combination with *--tlsrpt_record_map*!
 
 *--debug_send_mail_dest*=_path_::
 Override the email destination to send out reports via email.
 Please note: With this option set, reports to email destinations will not be sent ot the requested destination from the TLSRPT DNS record but to this replacement address instead!
-{production-warning}  
+{production-warning}
+Cannot be used in combination with *--mail_destination_map*!
+
 
 *--debug_send_http_dest*=_path_::
 Override the HTTP POST destination to send out reports via HTTP POST requests.
 Please note: With this option set, reports to HTTP POST destinations will not be sent ot the requested destination from the TLSRPT DNS record but to this replacement URL instead!
 {production-warning}  
+Cannot be used in combination with *--http_upload_map*!
+
 
 include::manpage-common-options.adoc[]
 

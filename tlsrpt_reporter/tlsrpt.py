@@ -258,9 +258,14 @@ def setup_logging(filename, level, component_name):
     logging.basicConfig(format="%(asctime)s " + component_name + " %(levelname)s %(module)s %(lineno)s : %(message)s",
                         level=logging.NOTSET, handlers=handlers)
     numeric_level = getattr(logging, level.upper(), None)
-    if not isinstance(numeric_level, int):
+    if not isinstance(numeric_level, int):  # try to parse as int instead of a named log level
+        try:
+            numeric_level = int(level)
+        except:
+            pass
+    if not isinstance(numeric_level, int):  # neither a valid name nor a numeric loglevel
         raise ValueError("Invalid log level: %s" % level)
-    logger.setLevel(numeric_level)
+    logging.getLogger().setLevel(numeric_level)
 
 
 class EmailReport(email.message.EmailMessage):

@@ -19,6 +19,33 @@
 
 import datetime
 
+
+def remove_prefix(s:str, prefix:str):
+    """
+    Removes a prefix from a string, helper function for pre-3.9 python
+    :param s: the string potentially beginning with a prefix that should be removed
+    :param prefix: The prefix to be removed if present
+    :return: Result of stripping prefix from s
+    """
+    if s.startswith(prefix):
+        return s[len(prefix):]
+    return s
+
+
+def remove_suffix(s:str, suffix:str):
+    """
+    Removes a suffix from a string, helper function for pre-3.9 python
+    :param s: the string potentially ending in a suffix that should be removed
+    :param suffix: The suffix to be removed if present
+    :return: Result of stripping suffix from s
+    """
+    if len(suffix) == 0:  # special case to avoid [:-0] acting like [:0]
+        return s
+    if s.endswith(suffix):
+        return s[:-len(suffix)]
+    return s
+
+
 class MalformedTlsrptRecordException(Exception):
     pass
 

@@ -24,6 +24,7 @@ import gzip
 import json
 import logging
 import random
+import tempfile
 from abc import ABCMeta, abstractmethod
 import os
 from pathlib import Path
@@ -46,6 +47,7 @@ from tlsrpt_reporter.utility import *
 from tlsrpt_reporter.config import options_from_cmd_env_cfg
 from tlsrpt_reporter import randpool
 from tlsrpt_reporter import plugins
+from tlsrpt_reporter import mapping
 
 # Constants
 DB_Purpose_Suffix = "-devel-2024-10-28"
@@ -185,6 +187,9 @@ ConfigReportd = collections.namedtuple("ConfigReportd",
                                          'contact_info',
                                          'sender_address',
                                          'compression_level',
+                                         'tlsrpt_record_map',
+                                         'mail_destination_map',
+                                         'http_upload_map',
                                          'http_script',
                                          'http_timeout',
                                          'sendmail_script',
@@ -223,6 +228,9 @@ options_reportd = {
     "contact_info": {"type": str, "default": "", "help": "The contact information of the sending organization"},
     "sender_address": {"type": str, "default": "", "help": "The From: address to send the report email from"},
     "compression_level": {"type": int, "default": -1, "help": "zlib compression level used to create reports"},
+    "tlsrpt_record_map": {"type": str, "default": "", "help": "Filename of the map to modify TLSRPT records"},
+    "mail_destination_map": {"type": str, "default": "", "help": "Filename of the map to modify mail destinations"},
+    "http_upload_map": {"type": str, "default": "", "help": "Filename of the map to modify http upload destinations"},
     "http_script": {"type": str,
                     "default": "curl --silent --header 'Content-Type: application/tlsrpt+gzip' --data-binary @-",
                     "help": "HTTP upload script"},
@@ -790,6 +798,8 @@ class TLSRPTReportd(VersionedSQLite):
         :type config: ConfigReportd
         """
         self.cfg = config
+        self._config_check()  # will throw Exceptions when Errors in config are found
+
         # Some config sanity checks
         fetchers = self.get_fetchers()
         if self.cfg.fetchers == "":
@@ -797,6 +807,11 @@ class TLSRPTReportd(VersionedSQLite):
         for fetcher in fetchers:
             if fetcher.strip() == "":
                 raise TLSRPTReportdSetupException("Empty fetcher configured")
+
+        self.destination_map = mapping.DestinationMap()
+        self.destination_map.read_from_files(self.cfg.tlsrpt_record_map,
+                                             self.cfg.mail_destination_map,
+                                             self.cfg.http_upload_map)
 
         # Proceed with startup
         super().__init__(self.cfg.dbname)
@@ -810,6 +825,18 @@ class TLSRPTReportd(VersionedSQLite):
             self._setup_database()
         if self.cfg.debug_db:
             self.con.set_trace_callback(print)
+
+    def _config_check(self):
+        # check for deprecated options that must be used exclusively with the more flexible newer option
+        colliding_options = (("debug_send_file_dest", "tlsrpt_record_map"),
+                             ("debug_send_mail_dest", "mail_destination_map"),
+                             ("debug_send_http_dest", "http_upload_map"),
+                             )
+        for (deprecatedfield, newfield) in colliding_options:
+            df = getattr(self.cfg, deprecatedfield)
+            nf = getattr(self.cfg, newfield)
+            if nf != "" and df != "":
+                raise TLSRPTReportdSetupException("Deprecated option %s can not be used with option %s", deprecatedfield, newfield)
 
     def _db_purpose(self):
         return "TLSRPT-Reportd-DB" + DB_Purpose_Suffix
@@ -1181,6 +1208,7 @@ class TLSRPTReportd(VersionedSQLite):
             ruas = parse_tlsrpt_record(tlsrptrecord)
         except MalformedTlsrptRecordException as e:
             logger.error("Bad TLSRPT record on day %s for domain %s: '%s' => %s", day, dom, tlsrptrecord, e)
+        ruas = self.destination_map.map_destination(dom, ruas, logger)
         for rua in ruas:
             cur.execute("INSERT INTO destinations (destination, d_r_id, retries, status, nexttry) VALUES(?,?,0,NULL,?)",
                         (rua, r_id, self.schedule_report_delivery()))
@@ -1250,6 +1278,26 @@ class TLSRPTReportd(VersionedSQLite):
         with open(filename, "w") as file:
             file.write(report)
 
+    def send_out_report_to_local_directory(self, dom, d_r_id, destination:str, report):
+        """
+        Save report to a local file for debugging
+        :param dom: the domain for which the reported was created
+        :param d_r_id: id of the report
+        :param destination: the directory where to create the file
+        :param report: the report
+        """
+        # Check for correct scheme
+        scheme = "directory:"
+        if destination.startswith(scheme):
+            dir = remove_prefix(destination, scheme)
+        else:
+            raise mapping.InvalidDestinationScheme("Expected '" + scheme + "' scheme in destination " + destination)
+        fd, filename = tempfile.mkstemp(dir=dir, prefix="tlsrpt-" + dom + "-" + str(d_r_id) + "-", suffix=".json")
+        logger.debug("Saving report %s for domain %s to %s", str(d_r_id), dom, filename)
+        with os.fdopen(fd,"w") as file:
+            file.write(report)
+        return DeliveryResult.SUCCEEDED
+
     def send_out_report_to_mail(self, day, dom, d_r_id, uniqid, destination, zreport) -> DeliveryResult:
         """
         Send out a report via email
@@ -1261,6 +1309,13 @@ class TLSRPTReportd(VersionedSQLite):
         :param zreport: the compressed report
         :return: DeliveryResult.SUCCEEDED if the smtp_script finished without errors, TRYAGAIN otherwise
         """
+        # Check for correct scheme
+        scheme = "mailto:"
+        if destination.startswith(scheme):
+            destination = remove_prefix(destination, scheme)
+        else:
+            raise InvalidDestinationScheme("Expected " + scheme +" scheme in destination " + destination)
+
         # Check for debug override of destination
         dest = self.cfg.debug_send_mail_dest
         if dest is None or dest == "":
@@ -1362,10 +1417,11 @@ class TLSRPTReportd(VersionedSQLite):
         zreport = gzip.compress(report.encode("utf-8"), self.cfg.compression_level)
         # Send out the actual report
         if destination.startswith("mailto:"):
-            destination = destination[7:]  # remove "mailto:" URL scheme
             return self.send_out_report_to_mail(day, dom, d_r_id, uniqid, destination, zreport)
         elif destination.startswith("https:"):
             return self.send_out_report_to_http(destination, zreport)
+        elif destination.startswith("directory:"):
+            return self.send_out_report_to_local_directory(dom, d_r_id, destination, report)
         else:
             logger.error("Unknown RUA scheme in report destination '%s'", destination)
             return DeliveryResult.UNKNOWNRUA

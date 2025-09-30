@@ -97,6 +97,16 @@ Minimum time to wait before retrying a failed report delivery attempt.
 Maximum time to wait before retrying a failed report delivery attempt.
 
 
+*--http_upload_map*=_path_::
+Load a transformation map for HTTPS report destinations from file _path_. 
+
+*--mail_destination_map*=_path_::
+Load a transformation map for SMTP report destinations from file _path_.
+
+*--tlsrpt_record_map*=_path_::
+Load a transformation map for all report destinations based on the TLSRPT domain from file _path_.
+
+
 === Options controlling the interaction with one or more tlsrpt-collectd
 
 *--max_collectd_timediff*=_sec_::

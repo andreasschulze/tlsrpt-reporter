@@ -1733,7 +1733,7 @@ def tlsrpt_reportd_main():
             else:
                 logger.info("Can not run reportd due to setup failure")
         except Exception as e:
-            logger.error("Exception %s while running tlsrpt_reportd_daemon: %s", e.__class__.__name__, e)
+            logger.error("Exception %s while running tlsrpt_reportd_daemon: %s", e.__class__.__name__, e, exc_info=1)
 
 
     if exitcode != 0:

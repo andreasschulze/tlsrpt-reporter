@@ -22,8 +22,6 @@ import logging
 from typing import Tuple
 from xmlrpc.client import Boolean
 
-from tlsrpt_reporter.utility import remove_prefix, remove_suffix
-
 logger = logging.getLogger(__name__)
 
 import collections
@@ -168,7 +166,7 @@ class MapMatcherMail(MapMatcher):
     def __init__(self, domainsuffix):
         self.domainsuffix = domainsuffix
     def matches(self, s:str):
-        s = "mailto://" + remove_prefix(s, "mailto:")   # work-around to make urllib.parse extract hostname
+        s = "mailto://" + utility.remove_prefix(s, "mailto:")   # work-around to make urllib.parse extract hostname
         parsed = urllib.parse.urlparse(urllib.parse.unquote(s))
         result = False
         try:

@@ -19,7 +19,7 @@
 
 
 import logging
-from typing import Tuple
+from typing import Tuple, Union
 from xmlrpc.client import Boolean
 
 logger = logging.getLogger(__name__)
@@ -176,6 +176,18 @@ class MapMatcherMail(MapMatcher):
             return False
 
 
+class MapMatcherGenericRegexp(MapMatcher):
+    """
+    Matcher that matches a regexp against anything
+    Can be used for all three map types because this Matcher acts on the whole string
+    and does not need to extract the domain part in different ways
+    """
+    def __init__(self, pattern):
+        self.cpattern = re.compile(pattern)
+    def matches(self, s:str):
+        return self.cpattern.match(s) is not None  # force match return type to boolean via "is not None"
+
+
 class InvalidDestinationScheme(Exception):
     """
     An invalid URI scheme was passed into the mapping
@@ -197,7 +209,7 @@ class MapParseError(Exception):
     pass
 
 
-def _parse_map_entry(line:str, linenr: int, map_name: str) -> Tuple[str, MapAction]:
+def _parse_map_entry(line:str, linenr: int, map_name: str) -> Union[Tuple[str, str, MapAction], Tuple[None, None, None]]:
     """
     Parses one line of a map configuration file
     :param line: The line to be parsed
@@ -206,22 +218,26 @@ def _parse_map_entry(line:str, linenr: int, map_name: str) -> Tuple[str, MapActi
     :type linenr: int
     :param map_name: The name of the map
     :type map_name: str
-    :return: A tuple of the pattern to be matched and the MapAction to be performed in case of a match
+    :return: A tuple of the match type, pattern to be matched and the MapAction to be performed in case of a match
     :rtype:
     """
     log_prefix = f"{map_name} line {linenr}:"
     line = line.strip()
     if line == "":
-        return None, None
+        return None, None, None
     if line.startswith("#"):
-        return None, None
+        return None, None, None
     parts = line.split(maxsplit=2)
     if len(parts) < 2:
         raise MapParseError(f"{log_prefix} Missing action")
     part_match = parts[0]
-    # check part_match for ":" to support different match typ in the future like "regexp:", "ip:", "whois:"
+    # check part_match for ":" to support different match type in the future like "regexp:", "ip:", "whois:"
     match_components = part_match.split(sep=":", maxsplit=1)
+    match_type = "domain"  # without a "matchtype:" prefix assume "domain:"
     if len(match_components) > 1:
+        match_type = match_components[0]
+        part_match = match_components[1]
+    if match_type not in ['domain', 'regexp']:  # catch wrong types here already to report map name and line number
         raise MapParseError(f"{log_prefix} Unsupported match type '{match_components[0]}'")
     # provide empty third part
     part_action = parts[1]
@@ -254,7 +270,7 @@ def _parse_map_entry(line:str, linenr: int, map_name: str) -> Tuple[str, MapActi
         action = MapActionRegexpTransform(regexp_params[0], regexp_params[1])
     else:
         raise MapParseError(f"{log_prefix} Unknown action {part_action}")
-    return part_match, action
+    return match_type, part_match, action
 
 
 class DestinationMap:
@@ -263,14 +279,32 @@ class DestinationMap:
         self.mailmap = []
         self.httpmap = []
 
-    def add_rua_mapping(self, pattern:str, action:MapAction, linenr:int):
-        self.ruamap.append(DestinationMapEntry(MapMatcherRua(pattern), action, linenr))
+    def add_rua_mapping(self, match_type:str, pattern:str, action:MapAction, linenr:int):
+        if match_type == "domain":
+            matcher = MapMatcherRua(pattern)
+        elif match_type == "regexp":
+            matcher = MapMatcherGenericRegexp(pattern)
+        else:
+            raise MapParseError(f"Cannot instantiate matcher for match type '{match_type}'")
+        self.ruamap.append(DestinationMapEntry(matcher, action, linenr))
 
-    def add_http_mapping(self, pattern:str, action:MapAction, linenr:int):
-        self.httpmap.append(DestinationMapEntry(MapMatcherHttp(pattern), action, linenr))
+    def add_http_mapping(self, match_type:str, pattern:str, action:MapAction, linenr:int):
+        if match_type == "domain":
+            matcher = MapMatcherHttp(pattern)
+        elif match_type == "regexp":
+            matcher = MapMatcherGenericRegexp(pattern)
+        else:
+            raise MapParseError(f"Cannot instantiate matcher for match type '{match_type}'")
+        self.httpmap.append(DestinationMapEntry(matcher, action, linenr))
 
-    def add_mail_mapping(self, pattern:str, action:MapAction, linenr:int):
-        self.mailmap.append(DestinationMapEntry(MapMatcherMail(pattern), action, linenr))
+    def add_mail_mapping(self, match_type:str, pattern:str, action:MapAction, linenr:int):
+        if match_type == "domain":
+            matcher = MapMatcherMail(pattern)
+        elif match_type == "regexp":
+            matcher = MapMatcherGenericRegexp(pattern)
+        else:
+            raise MapParseError(f"Cannot instantiate matcher for match type '{match_type}'")
+        self.mailmap.append(DestinationMapEntry(matcher, action, linenr))
 
     def read_from_files(self, rua_map_name:str, mail_map_name:str, http_map_name:str):
         if rua_map_name is not None and rua_map_name != "":
@@ -296,9 +330,9 @@ class DestinationMap:
         linenr = 0
         for line in map_io:
             linenr += 1
-            (pattern,action) = _parse_map_entry(line, linenr, map_name)
+            (match_type, pattern,action) = _parse_map_entry(line, linenr, map_name)
             if pattern is not None and action is not None:
-                adder_func(self, pattern, action, linenr)
+                adder_func(self, match_type, pattern, action, linenr)
                 logger.debug("Added line %d to map %s", linenr, map_name)
             elif pattern is None and action is None:
                 pass

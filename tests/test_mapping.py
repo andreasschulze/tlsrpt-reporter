@@ -2,7 +2,7 @@ import io
 import unittest
 import logging
 from tlsrpt_reporter.mapping import DestinationMap, MapActionAccept, MapActionDiscard, MapActionAppend, \
-    MapActionReplace, InvalidDestinationScheme, MapParseError
+    MapActionReplace, InvalidDestinationScheme, MapParseError, MapActionRegexpTransform
 
 
 class MyTestCase(unittest.TestCase):
@@ -10,15 +10,18 @@ class MyTestCase(unittest.TestCase):
         line = 0
         self.dm=DestinationMap()
         line += 1
-        self.dm.add_rua_mapping("accept.example.com",MapActionAccept(), line)
+        self.dm.add_rua_mapping("domain", "accept.example.com",MapActionAccept(), line)
         line += 1
-        self.dm.add_rua_mapping("replace.example.com",MapActionReplace(["https://replaced.org",]), line)
+        self.dm.add_rua_mapping("domain", "replace.example.com",MapActionReplace(["https://replaced.org",]), line)
         line += 1
-        self.dm.add_rua_mapping("discard.example.com",MapActionDiscard(), line)
+        self.dm.add_rua_mapping("domain", "discard.example.com",MapActionDiscard(), line)
         line += 1
-        self.dm.add_rua_mapping("append.example.com",MapActionAppend(["https://appended.org",]), line)
+        self.dm.add_rua_mapping("domain", "append.example.com",MapActionAppend(["https://appended.org",]), line)
         line += 1
-        self.dm.add_rua_mapping("example.com",MapActionReplace(["directory:/completely.replaced",]), line)
+        self.dm.add_rua_mapping("domain", "example.com",MapActionReplace(["directory:/completely.replaced",]), line)
+        line += 1
+        self.dm.add_rua_mapping("domain", "sample.org", MapActionRegexpTransform("example", "sample"), line)
+        self.dm.add_rua_mapping("regexp", ".*sample.*", MapActionRegexpTransform("example", "anothersample"), line)
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.DEBUG)
         #self.logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -34,6 +37,8 @@ class MyTestCase(unittest.TestCase):
                      {"dom": "append.example.com", "rua": ["mailto:report@example.net", "https://report.example.net", "https://appended.org"]},
                      {"dom": "example.com", "rua": ["directory:/completely.replaced",]},
                      {"dom": "example.org", "rua": ruas},
+                     {"dom": "sample.org", "rua": ["mailto:report@sample.net", "https://report.sample.net"]},
+                     {"dom": "subdomain.sample.org", "rua": ["mailto:report@anothersample.net", "https://report.anothersample.net"]},
                      ]
         i = 0
         for tc in testcases:

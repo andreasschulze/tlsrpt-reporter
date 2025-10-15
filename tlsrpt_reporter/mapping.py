@@ -168,14 +168,12 @@ class MapMatcherMail(MapMatcher):
     def matches(self, s:str):
         s = "mailto://" + utility.remove_prefix(s, "mailto:")   # work-around to make urllib.parse extract hostname
         parsed = urllib.parse.urlparse(urllib.parse.unquote(s))
-        result = False
         try:
-            result = _domain_match(parsed.hostname, self.domainsuffix)
-        except:
-            logger.exception("Error parsing email address %s into user '%s', host '%s' and %s",
-                       s, parsed.username, parsed.hostname, parsed)
+            return _domain_match(parsed.hostname, self.domainsuffix)
+        except Exception as e:
+            logger.exception("Error parsing email address %s into user '%s', host '%s' and %s: %s",
+                       s, parsed.username, parsed.hostname, parsed, e)
             return False
-        return result
 
 
 class InvalidDestinationScheme(Exception):

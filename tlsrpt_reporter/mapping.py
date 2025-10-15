@@ -183,7 +183,10 @@ class MapMatcherGenericRegexp(MapMatcher):
     and does not need to extract the domain part in different ways
     """
     def __init__(self, pattern):
-        self.cpattern = re.compile(pattern)
+        try:
+            self.cpattern = re.compile(pattern)
+        except Exception as e:
+            raise MapParseError(f"Could not compile regexp match '{pattern}'")
     def matches(self, s:str):
         return self.cpattern.match(s) is not None  # force match return type to boolean via "is not None"
 

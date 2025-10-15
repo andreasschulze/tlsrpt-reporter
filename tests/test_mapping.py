@@ -82,6 +82,7 @@ class MyTestCase(unittest.TestCase):
         tests = {".subdomain.example" : "rua map line 1: Missing action",
                  ".subdomain.example ": "rua map line 1: Missing action",
                  ".subdomain.example WRONGACTION": "rua map line 1: Unknown action WRONGACTION",
+                 ".subdomain.example REJECT": "rua map line 1: Unknown action REJECT",  # we use "DISCARD", not "REJECT"
                  ".subdomain.example ACCEPT unexpected_parameter":
                      "rua map line 1: Map action ACCEPT does not accept additional parameters",
                  ".subdomain.example DISCARD unexpected_parameter":

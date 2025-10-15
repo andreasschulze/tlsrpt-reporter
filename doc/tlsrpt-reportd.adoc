@@ -168,6 +168,46 @@ Cannot be used in combination with *--http_upload_map*!
 
 include::manpage-common-options.adoc[]
 
+== Destination Mapping
+
+The *--tlsrpt_record_map*, *--http_upload_map* and *--mail_destination_map* options allow a mapping of the report destinations retrieved from the TLSRPT record based on the domain the report is created for.
+
+All maps are processed on a "first match wins" manner. No further rules are processed after a rule has matched. 
+
+The *--tlsrpt_record_map* is used first to transform the whole set of destinations.
+The *--http_upload_map* and *--mail_destination_map* options allow for further modifications to report destinations matching the "mailto:" or "https:" URI scheme and they inspect the report destination to determine if the rule applies, not the domain for which the report is created.
+
+Each map line has the format:
+*match* *action* [*parameters*]
+
+*match* is of the form "matchtype:pattern".
+Supported match tyoes are: "domain:" and "regexp:".
+
+The "domain:" prefix can be omitted, i.e. without a match tyoe specified the "domain:" match style is the default.
+A "domain:" match matches the domain part of a "mailto:" URI in the *--mail_destination_map* and the domain part of an "https:" URI in the *--http_upload_map*.
+
+A "regexp:" style match in the *--tlsrpt_record_map* matches against the domain name the report is created for.
+A "regexp:" style match in the *--http_upload_map* and *--mail_destination_map* maps matches against the whole report destination, not just the extracted domain part.
+
+The *action* can be on of "ACCEPT", "DISCARD", "APPEND", "REPLACE" and "REGEXP".
+"ACCEPT" actions just accept the report destinations as they are. 
+"DISCARD" actions return an empty set of report destinations, no report will be sent out.
+"APPEND" actions supply additional report destinations.
+"REPLACE" actions replace the report destinations with other destinations.
+"REGEXP" actions transform each matching report destination according to their two parameters: a matching regexp and a substitution.
+
+"APPEND" and "REPLACE" and "REGEXP" actions can introduce other URI schemes.
+tlsrpt-reportd understands in addition to the "mailto:" and "https:" URI schemes defined in RFC 8460 the additional URI scheme "directory:" as a directory in the filesystem where reports are to be saved as files to allow inspection and debugging.
+
+Rules in the *--mail_destination_map* can also introduce "https:" and "directory:" URIs as report destinations.
+Rules in the *--http_upload_map* can also introduce "https:" and "directory:" URIs as report destinations.
+No further processing is done with those destinations, i.e. a "https:" URI introduced in the *--mail_destination_map* is not put through the transformations from *--http_upload_map* and vice versa.
+
+The results from *--tlsrpt_record_map* which is processed first, however, are put through the transformations of *--http_upload_map* and *--mail_destination_map* even if *--tlsrpt_record_map* already had actions modify the report destinations.
+
+
+
+
 == Examples
 
 Retrieve data from a local fetcher with standard configuration and from another local fetcher with a different storage:

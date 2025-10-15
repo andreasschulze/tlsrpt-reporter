@@ -104,6 +104,30 @@ class MyTestCase(unittest.TestCase):
                 dm.read_from_ios(mockfile, None, None)
             self.assertEqual(description, str(pe.exception))
 
+    def test_clean_parsing(self):
+        """
+        Test for proper exception to be thrown for various parse errors
+        """
+        tests = [".subdomain.example ACCEPT",
+                 ".subdomain.example DISCARD",
+                 ".subdomain.example APPEND mailto:test@example.com",
+                 ".subdomain.example REPLACE mailto:test@example.com",
+                 ".subdomain.example REGEXP example sample",
+                 "regexp:.*subdomain.* ACCEPT",
+                 "regexp:.*subdomain.* DISCARD",
+                 "regexp:.*subdomain.* APPEND mailto:test@example.com",
+                 "regexp:.*subdomain.* REPLACE mailto:test@example.com",
+                 "regexp:.*subdomain.* REGEXP example sample",
+                 ]
+        for cfgline in tests:
+            dm = DestinationMap()
+            mockfile = io.StringIO(cfgline)
+            dm.read_from_ios(mockfile, mockfile, mockfile)
+            self.assertEqual(len(dm.ruamap), 1)  # should contain the one rule parsed
+            self.assertEqual(len(dm.httpmap), 0)  # should contain zero rules, no lines were left in mockfile
+            self.assertEqual(len(dm.mailmap), 0)  # should contain zero rules, no lines were left in mockfile
+
+
 
 if __name__ == '__main__':
     unittest.main()

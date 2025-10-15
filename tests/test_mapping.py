@@ -77,7 +77,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_parse_error_match_type(self):
         """
-        Test for proper exception to b thrown for various parse errors
+        Test for proper exception to be thrown for various parse errors
         """
         tests = {".subdomain.example" : "rua map line 1: Missing action",
                  ".subdomain.example ": "rua map line 1: Missing action",

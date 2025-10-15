@@ -185,6 +185,20 @@ Supported match tyoes are: "domain:" and "regexp:".
 
 The "domain:" prefix can be omitted, i.e. without a match tyoe specified the "domain:" match style is the default.
 A "domain:" match matches the domain part of a "mailto:" URI in the *--mail_destination_map* and the domain part of an "https:" URI in the *--http_upload_map*.
+A "domain:" match can match a complete domain name or if it starts with a "." it matches all subdomains. A single "." matches every domain name. A trailing "." after a domain name is ignored.
+
+The domain name "many.sub.domains.example.com" would not be matched by "sub.domains.example.com" or "sub.domains.example.com." without a leading dot, but it would be matched by these domain match expressions:
+- many.sub.domains.example.com.
+- .sub.domains.example.com.
+- .domains.example.com.
+- .example.com.
+- .com.
+- many.sub.domains.example.com
+- .sub.domains.example.com
+- .domains.example.com
+- .example.com
+- .com
+- .
 
 A "regexp:" style match in the *--tlsrpt_record_map* matches against the domain name the report is created for.
 A "regexp:" style match in the *--http_upload_map* and *--mail_destination_map* maps matches against the whole report destination, not just the extracted domain part.

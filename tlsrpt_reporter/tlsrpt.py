@@ -1205,10 +1205,15 @@ class TLSRPTReportd(VersionedSQLite):
         r_id = cur.lastrowid
         ruas = []
         try:
-            ruas = parse_tlsrpt_record(tlsrptrecord)
+            tmpruas = parse_tlsrpt_record(tlsrptrecord)
+            ruas = self.destination_map.map_destination(dom, tmpruas, logger)
         except MalformedTlsrptRecordException as e:
             logger.error("Bad TLSRPT record on day %s for domain %s: '%s' => %s", day, dom, tlsrptrecord, e)
-        ruas = self.destination_map.map_destination(dom, ruas, logger)
+        except mapping.InvalidDestinationScheme as e:
+            logger.error("Invalid destination scheme in TLSRPT record on day %s for domain %s: '%s' => %s", day, dom, tlsrptrecord, e)
+        except mapping.UnsupportedDestinationScheme as e:
+            logger.error("Unsupported destination scheme after destination map transformation on day %s for domain %s: '%s' => %s", day, dom,
+                         tlsrptrecord, e)
         for rua in ruas:
             cur.execute("INSERT INTO destinations (destination, d_r_id, retries, status, nexttry) VALUES(?,?,0,NULL,?)",
                         (rua, r_id, self.schedule_report_delivery()))
@@ -1314,7 +1319,7 @@ class TLSRPTReportd(VersionedSQLite):
         if destination.startswith(scheme):
             destination = remove_prefix(destination, scheme)
         else:
-            raise InvalidDestinationScheme("Expected " + scheme +" scheme in destination " + destination)
+            raise mapping.InvalidDestinationScheme("Expected " + scheme +" scheme in destination " + destination)
 
         # Check for debug override of destination
         dest = self.cfg.debug_send_mail_dest

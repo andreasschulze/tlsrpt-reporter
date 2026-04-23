@@ -22,6 +22,9 @@ import datetime
 class MalformedTlsrptRecordException(Exception):
     pass
 
+class MalformedEmailAddressException(Exception):
+    pass
+
 def parse_tlsrpt_record(tlsrpt_record):
     """
     Parses a TLSRPT DNS record and extracts the destination URIs
@@ -51,6 +54,19 @@ def normalize_domain_name(domain: str):
     if domain.endswith(".") and not domain.endswith("..") and domain !=".":  # strip one single trailing dot
         domain = domain[:-1]
     return domain
+
+def extract_domain_from_email_address(email: str):
+    '''
+    Extract the domain part from an email address
+    :param email: The email address from which to extract the domain part
+    :type email: str
+    :return: The domain part of the email address
+    :rtype: str
+    '''
+    parts = email.rsplit('@', 1)
+    if len(parts) != 2:
+        raise MalformedEmailAddressException("Could not extract domain part from " + email)
+    return parts[1]
 
 def make_yesterday_dbname(dbname):
     """

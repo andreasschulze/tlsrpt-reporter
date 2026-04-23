@@ -1270,7 +1270,7 @@ class TLSRPTReportd(VersionedSQLite):
         msg['To'] = dest
         msg.add_header("Message-ID", email.utils.make_msgid(domain=msg["From"].groups[0].addresses[0].domain))
         msg.add_header("TLS-Report-Domain", dom)
-        msg.add_header("TLS-Report-Submitter", self.cfg.organization_name)
+        msg.add_header("TLS-Report-Submitter", self.sender_domain())
         msg.add_header("TLS-Required", "No")  # use RFC 8689 header
 
         nr = uniqid
@@ -1460,14 +1460,21 @@ class TLSRPTReportd(VersionedSQLite):
         return tlsrpt_report_start_datetime(day) + "_idx" + str(report_index) + "_" + report_domain
 
     def create_email_subject(self, dom, report_id):
-        return "Report Domain: " + dom + " Submitter: " + self.cfg.organization_name + \
-               " Report-ID: <" + str(report_id) + "@" + self.cfg.organization_name + ">"
+        return "Report Domain: " + dom + " Submitter: " + self.sender_domain() + \
+               " Report-ID: <" + str(report_id) + "@" + self.sender_domain() + ">"
 
     def create_report_filename(self, dom, day, nr):
         start = tlsrpt_report_start_timestamp(day)
         end = tlsrpt_report_end_timestamp(day)
-        return self.cfg.organization_name + "!" + dom + "!" + str(start) + "!" + str(end) + "!" + str(nr) + ".json.gz"
+        return self.sender_domain() + "!" + dom + "!" + str(start) + "!" + str(end) + "!" + str(nr) + ".json.gz"
 
+    def sender_domain(self):
+        '''
+        Returns the sender domain of this report, extracted from contact_info
+        :return: The sender domain for this report
+        :rtype: str
+        '''
+        return normalize_domain_name(extract_domain_from_email_address(self.cfg.contact_info))
 
 def log_config_info(logger, configvars, sources, warnings):
     """

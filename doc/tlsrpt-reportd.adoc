@@ -1,6 +1,6 @@
 = tlsrpt-reportd(1)
 Boris Lohner
-v0.5.0
+v0.6.0
 :production-warning: This option must not be used on production systems!
 :doctype: manpage
 :manmanual: tlsrpt-reportd

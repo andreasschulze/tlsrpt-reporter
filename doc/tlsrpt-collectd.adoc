@@ -1,6 +1,6 @@
 = tlsrpt-collectd(1)
 Boris Lohner
-v0.5.0
+v0.6.0
 :doctype: manpage
 :manmanual: tlsrpt-collectd
 :mansource: tlsrpt-collectd

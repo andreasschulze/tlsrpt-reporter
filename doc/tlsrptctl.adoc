@@ -1,0 +1,70 @@
+= tlsrptctl(1)
+Boris Lohner
+v0.6.0
+:doctype: manpage
+:manmanual: tlsrptctl
+:mansource: tlsrptctl
+:man-linkstyle: pass:[blue R < >]
+:varpar-configsection: tlsrptctl
+:varpar-environmentprefix: TLSRPT_REPORTD_
+
+== Name
+
+tlsrptctl - A control tool for tlsrpt-reportd.
+
+== Synopsis
+
+*tlsrptctl* [_COMMAND_] [_OPTION_]
+
+== Description
+
+The tlsrptctl tool is used to show the status of a tlsrpt-reportd and to perform tests of the configuration.
+
+== Options
+
+tlsrptctl uses for different command different subsets of the configuration file section of tlsrpt-reportd. Options from the configuration file that are not needed for the command are silently ignored, while unknown options result in an error.
+
+== Options for the *status* command
+
+*--dbname*=_path_::
+Use SQLite data base at location _path_.
+
+== Options for the *maptest* command
+
+*--http_upload_map*=_path_::
+Load a transformation map for HTTPS report destinations from file _path_.
+Cannot be used in combination with *--debug_send_http_dest*!
+
+*--mail_destination_map*=_path_::
+Load a transformation map for SMTP report destinations from file _path_.
+Cannot be used in combination with *--debug_send_mail_dest*!
+
+*--tlsrpt_record_map*=_path_::
+Load a transformation map for all report destinations based on the TLSRPT domain from file _path_.
+Cannot be used in combination with *--debug_send_file_dest*!
+
+include::manpage-common-options.adoc[]
+
+
+== Exit status
+*0*::
+  Success.
+
+*1*::
+  Failure.
+
+== Examples
+
+Show the status of a tlsrpt-reportd:
+
+*tlsrptctl status*
+
+
+Test the three report destination transformation maps defined in the config file:
+
+*tlsrptctl maptest --config_file /some/config/file example.com "v=TLSRPTv1; rua=mailto:tlsrpt@example.com"*
+
+== See also
+man:tlsrpt-reportd[1]
+
+include::manpage-copying.adoc[]

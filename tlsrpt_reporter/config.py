@@ -20,6 +20,10 @@
 import argparse
 import configparser
 import os
+#from distutils.command.config import config
+
+
+_IGNORE = "###IGNORED###"  # string constant set as type for options that need to be ignored in a config file
 
 
 def _options_from_cmd(options, pospar):
@@ -42,6 +46,23 @@ def _options_from_cmd(options, pospar):
     return opts, pars
 
 
+def ignore_other_options(options, keep):
+    """
+    Trim down an options list to ignore all options not listed in keep.
+    :param options: The options structure to be filtered
+    :param keep: The options to *not* set to "ignore"
+    :return: A modified options structrue with all options not listed in keep to be ignored
+    """
+    result = {}
+    for k, v in options.items():
+        if k not in keep:
+            result[k] = v
+            result[k]["type"] = _IGNORE
+        else:
+            result[k] = v  # keep the option as it is
+    return result
+
+
 def options_from(order: str, options: dict, default_config_file: str, config_section: str, envprefix: str,
                  pospar: dict):
     """
@@ -59,7 +80,8 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
     # ocmd: options from command line
     # Add a parameter to specify a config file on the command line
     config_file_options = {"config_file": {"type": str, "default": None, "help": "Configuration file"}}
-    (ocmd, params) = _options_from_cmd({**options, **config_file_options}, pospar)
+    command_line_options = {k: v for k, v in options.items() if v["type"] != _IGNORE}
+    (ocmd, params) = _options_from_cmd({**command_line_options, **config_file_options}, pospar)
     # remove the added parameter from the results
     user_config_file = ocmd.pop("config_file", None)
 
@@ -90,14 +112,16 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
         elif k not in options:
             raise SyntaxError("Unknown key " + k + " in config file " + config_file)
         else:
-            ocfg[k] = options[k]["type"](v)
+            if options[k]["type"] != _IGNORE:
+                ocfg[k] = options[k]["type"](v)
 
     # oenv: options from environment
     oenv = {}
     for k in options:
         ek = envprefix + k.upper()  # environment-key: option "--key" becomes "PREFIX_KEY" as environment variable
         if ek in os.environ:
-            oenv[k] = options[k]["type"](os.environ[ek])
+            if options[k]["type"] != _IGNORE:
+                oenv[k] = options[k]["type"](os.environ[ek])
     # check for invalid options from environment, but report them only as warnings
     for e in os.environ:
         if e.startswith(envprefix):
@@ -115,6 +139,8 @@ def options_from(order: str, options: dict, default_config_file: str, config_sec
     sources = {}
     ordermap = {"c": ocmd, "f": ocfg, "e": oenv, "d": odef}
     for k in options:
+        if options[k]["type"] == _IGNORE:
+            continue
         tmp = None
         for sourcekey in order:
             src = ordermap[sourcekey]

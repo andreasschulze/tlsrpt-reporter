@@ -381,7 +381,7 @@ class DestinationMap:
     def _map(themap, mapname, destination, logger):
         for m in themap:
             if m.matcher.matches(destination):
-                nds = m.action.result((destination,))  # new destinations
+                nds = m.action.result([destination])  # new destinations
                 logger.info("Destination rewrite: %s line %d changed %s to %s", mapname, m.linenr, destination, nds)
                 return nds  # return the modified destination which can be a list of zero, one or more elements
         return (destination,)  # return the unmodified destination as a list of one element

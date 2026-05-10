@@ -32,7 +32,8 @@ from io import StringIO
 from tlsrpt_reporter import utility
 
 
-LL_DOMAINMATCHER = 5  # log level to debug matcher function, even lower than normal DEBUG=10
+LL_MAPMATCH = 5  # log level to debug matcher function, even lower than normal DEBUG=10
+LL_MAPNOMATCH = 4  # log level for map lines that do not match
 
 
 DestinationMapEntry = collections.namedtuple( "DestinationMapEntry", ['matcher', 'action', 'linenr'])
@@ -117,15 +118,15 @@ def _domain_match(domain: str, pattern: str) -> Boolean:
     """
     domain=utility.remove_suffix(domain, ".")
     if pattern == ".":  # catch-all
-        logger.log(LL_DOMAINMATCHER, "catch-all matched %s", domain)
+        logger.log(LL_MAPMATCH, "catch-all matched %s", domain)
         return True
     if pattern.startswith(".") and domain.endswith(pattern):  # suffix-match
-        logger.log(LL_DOMAINMATCHER, "suffix pattern %s matched %s", pattern, domain)
+        logger.log(LL_MAPMATCH, "suffix pattern %s matched %s", pattern, domain)
         return True
     if domain == pattern:  # exact match
-        logger.log(LL_DOMAINMATCHER, "exact match of pattern %s and %s", pattern, domain)
+        logger.log(LL_MAPMATCH, "exact match of pattern %s and %s", pattern, domain)
         return True
-    logger.log(LL_DOMAINMATCHER, "no match of pattern %s and %s", pattern, domain)
+    logger.log(LL_MAPNOMATCH, "no match of pattern %s and %s", pattern, domain)
     return False
 
 
@@ -357,7 +358,6 @@ class DestinationMap:
 
     def map_destination(self, domain, destinations, logger):
         self.pre_flight_check(destinations)
-        logger.info("LOGTEST domain:%s destinations:%s", domain, destinations)
         for m in self.ruamap:
             if m.matcher.matches(domain):
                 nds = m.action.result(destinations)

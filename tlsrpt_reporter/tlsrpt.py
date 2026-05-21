@@ -827,7 +827,19 @@ class TLSRPTReportd(VersionedSQLite):
             self.con.set_trace_callback(print)
 
     def _config_check(self):
-        # check for deprecated options that must be used exclusively with the more flexible newer option
+        """
+        Perform various checks of the configuration
+        Severe issues will throw an exception, other checks just report errors or warnings to the log
+        """
+        self._config_check_colliding_options()
+        for (n, fetcher) in enumerate(self.get_fetchers(), start=1):
+            logger.debug("CHECK FETCHER %s: %s", n, fetcher)
+            self._config_check_fetcher(n, fetcher)
+
+    def _config_check_colliding_options(self):
+        """
+        Check for deprecated options that must be used exclusively with the more flexible newer option
+        """
         colliding_options = (("debug_send_file_dest", "tlsrpt_record_map"),
                              ("debug_send_mail_dest", "mail_destination_map"),
                              ("debug_send_http_dest", "http_upload_map"),
@@ -837,6 +849,62 @@ class TLSRPTReportd(VersionedSQLite):
             nf = getattr(self.cfg, newfield)
             if nf != "" and df != "":
                 raise TLSRPTReportdSetupException("Deprecated option %s can not be used with option %s", deprecatedfield, newfield)
+
+    def _config_check_fetcher(self, fetcherindex: int, fetcher:str):
+        """
+        Check for problems in fetcher configuration
+        :param fetcherindex: The number of the fetcher
+        :param fetcher: The fetcher to check if it can be run without problems
+        """
+        fetchertimeout = 30  # timeout in case of unresponsive script
+        args = fetcher.split()
+        args.append("1999-01-01")  # use date way in the past in order to not get a domain list
+        try:
+            fetcherpipe = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            try:
+                (fetcherstdoutdata, fetcherstderrdata) = fetcherpipe.communicate(timeout=fetchertimeout)
+            except subprocess.TimeoutExpired as e:
+                fetcherpipe.kill()
+                logger.error("Test timed out for fetcher %s '%s' after %s seconds", fetcherindex, fetcher,
+                             fetchertimeout)
+                (fetcherstdoutdata, fetcherstderrdata) = fetcherpipe.communicate(timeout=fetchertimeout)  # clean up
+
+            fetcherstdoutlines = fetcherstdoutdata.decode('utf-8').splitlines()
+            # Check exit code before everything else
+            returncode = fetcherpipe.returncode
+            if returncode != 0:
+                logger.error("Test for fetcher %s '%s' failed with return code '%s'", fetcherindex, fetcher, returncode)
+                return
+            # Protocol line 1: Check protocol version
+            versionheader = fetcherstdoutlines[0].rstrip()
+            if versionheader != TLSRPT_FETCHER_VERSION_STRING_V1:
+                logger.error("Unsupported protocol version from fetcher %d '%s' :%s", fetcherindex, fetcher,
+                             versionheader)
+                return
+            else:
+                logger.debug("Test for fetcher %s '%s' got supported version header: %s", fetcherindex, fetcher, versionheader)
+            # Protocol line 2: Check current time of this collectd
+            collectd_time_string = fetcherstdoutlines[1].rstrip()
+            collectd_time = datetime.datetime.strptime(collectd_time_string, TLSRPT_TIMEFORMAT). \
+                replace(tzinfo=datetime.timezone.utc)
+            reportd_time = tlsrpt_utc_time_now()
+            dt = reportd_time - collectd_time
+            if abs(dt.total_seconds()) > self.cfg.max_collectd_timediff:
+                logger.warning("Collectd time %s and reportd time %s differ more then %s seconds on fetcher %d %s",
+                               collectd_time, reportd_time, self.cfg.max_collectd_timediff, fetcherindex, fetcher)
+            else:
+                logger.debug("Collectd time %s and reportd time %s differ less then %s seconds on fetcher %d %s",
+                               collectd_time, reportd_time, self.cfg.max_collectd_timediff, fetcherindex, fetcher)
+            # Protocol line 3: available day
+            available_day = fetcherstdoutlines[2].rstrip()
+            logger.debug("Test for fetcher %s '%s' reported available day %s", fetcherindex, fetcher, available_day)
+            # Protocol line 4: termination dot because there should be no domain list for a test run
+            final_line = fetcherstdoutlines[3].rstrip()
+            if final_line != '.':
+                logger.error("Test for fetcher %s '%s' failed: expected '.' but instead got '%s'", fetcherindex, fetcher, final_line )
+
+        except Exception as e:
+            logger.error("Test failed for fetcher %s '%s' with exception: %s", fetcherindex, fetcher, e.__str__())
 
     def _db_purpose(self):
         return "TLSRPT-Reportd-DB" + DB_Purpose_Suffix

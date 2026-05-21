@@ -151,7 +151,7 @@ class MapMatcherRua(MapMatcher):
 
 class MapMatcherHttp(MapMatcher):
     """
-    Matcher that expects a HTTPS URL and extracts the hostname to match a domain pattern
+    Matcher that expects an HTTPS URL and extracts the hostname to match a domain pattern
     """
     def __init__(self, domainsuffix):
         self.domainsuffix = domainsuffix
@@ -186,8 +186,9 @@ class MapMatcherGenericRegexp(MapMatcher):
     def __init__(self, pattern):
         try:
             self.cpattern = re.compile(pattern)
-        except Exception as e:
+        except Exception:
             raise MapParseError(f"Could not compile regexp match '{pattern}'")
+
     def matches(self, s:str):
         return self.cpattern.match(s) is not None  # force match return type to boolean via "is not None"
 

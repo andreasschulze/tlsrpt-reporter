@@ -52,14 +52,14 @@ class MalformedTlsrptRecordException(Exception):
 def parse_tlsrpt_record(tlsrpt_record):
     """
     Parses a TLSRPT DNS record and extracts the destination URIs
-    :param s:
-    :return:
+    :param tlsrpt_record: The TLSRPT DNS record to be parsed
+    :return: A list of report destinations extracted from the TLSRPT DNS record
     """
     # first split into the main parts: version and RUAs
     mparts = tlsrpt_record.split(";")
-    if(len(mparts) < 2):
+    if len(mparts) < 2:
         raise MalformedTlsrptRecordException("Malformed TLSRPT record: No semicolon found")
-    if(mparts[0] != "v=TLSRPTv1"):
+    if mparts[0] != "v=TLSRPTv1":
         raise MalformedTlsrptRecordException("Unsupported TLSRPT version: " + mparts[0])
     ruapart = mparts[1].strip()
     if not ruapart.startswith("rua="):
@@ -157,6 +157,7 @@ class Duration:
     def __init__(self):
         self.start()
         self.count = 0
+        self.begin = None
 
     def start(self):
         self.begin = datetime.datetime.now(datetime.timezone.utc)

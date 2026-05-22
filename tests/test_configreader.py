@@ -196,7 +196,7 @@ class MyTestCase(unittest.TestCase):
                          {'b0rk_ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
                          {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
                          {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
-        self.assertRegex(mock_stderr.getvalue(), r"dummy: error: unrecognized arguments: --b0rk_ocfe c")
+        self.assertRegex(mock_stderr.getvalue(), r"error: unrecognized arguments: --b0rk_ocfe c")
 
     def test_b0rkcfg(self):
         with self.assertRaises(SyntaxError) as cm:
@@ -248,7 +248,7 @@ class MyTestCase(unittest.TestCase):
                          {'nr': "text", 'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
                          {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
                          {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
-        self.assertRegex(mock_stderr.getvalue(), r"dummy: error: argument --nr: invalid int value: 'text'")
+        self.assertRegex(mock_stderr.getvalue(), r"error: argument --nr: invalid int value: 'text'")
 
     @patch('sys.stderr', new_callable=StringIO)
     def test_intarg_cmd_float(self, mock_stderr):
@@ -258,7 +258,8 @@ class MyTestCase(unittest.TestCase):
                 {'nr': "3.1415", 'ocfe': 'c', 'ocfx': "c", 'ocxe': "c", 'ocxx': "c"},
                 {'ocfe': 'f', 'ocfx': "f", 'oxfe': "f", 'oxfx': "f"},
                 {'ocfe': 'e', 'ocxe': "e", 'oxfe': "e", 'oxxe': "e"})
-        self.assertRegex(mock_stderr.getvalue(), r"dummy: error: argument --nr: invalid int value: '3.1415'")
+        self.assertRegex("TESTA\nTESTB\nTESTC", r"TESTB")
+        self.assertRegex(mock_stderr.getvalue(), r"error: argument --nr: invalid int value: '3.1415'")
 
     def test_type_int_cmd(self):
         self.do_test({'nr': 4,

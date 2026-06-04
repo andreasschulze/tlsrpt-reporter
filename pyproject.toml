@@ -38,6 +38,7 @@ dev = [
 tlsrpt-fetcher = "tlsrpt_reporter.tlsrpt:tlsrpt_fetcher_main"
 tlsrpt-collectd = "tlsrpt_reporter.tlsrpt:tlsrpt_collectd_main"
 tlsrpt-reportd = "tlsrpt_reporter.tlsrpt:tlsrpt_reportd_main"
+tlsrptctl = "tlsrpt_reporter.tlsrptctl:tlsrptctl_main"
 
 [project.entry-points."tlsrpt.collectd"]
 sqlite = "tlsrpt_reporter.tlsrpt:TLSRPTCollectdSQLite"
